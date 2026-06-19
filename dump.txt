@@ -1,0 +1,80 @@
+using BepInEx.Logging;
+using HarmonyLib;
+using PolytopiaBackendBase.Game;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using PolytopiaBackendBase.Common;
+using Il2CppInterop.Runtime;
+using DG.Tweening;
+using Polytopia.Data;
+
+
+namespace Polyquest
+{
+    public static class Main
+    {
+        public static bool isActive = false;
+        public static ManualLogSource? modLogger;
+
+        public static void Load(ManualLogSource logger)
+        {
+            modLogger = logger;
+
+            Harmony.CreateAndPatchAll(typeof(Main));
+            Harmony.CreateAndPatchAll(typeof(Loader));
+            Harmony.CreateAndPatchAll(typeof(GameSetup));
+
+            PolyMod.Loader.AddGameMode("conquest", (UIButtonBase.ButtonAction)OnConquestSelected, false);
+            PolyMod.Loader.AddPatchDataType("mapPreset", typeof(MapPreset));
+            PolyMod.Loader.AddPatchDataType("mapSize", typeof(MapSize));
+            PolyMod.Loader.AddPatchDataType("gameType", typeof(GameType));
+            PolyMod.Loader.AddPatchDataType("gameMode", typeof(GameMode));
+        
+            Main.modLogger?.LogInfo("[Conquest] Mod initialized");
+        }
+
+        private static void OnConquestSelected(int id, BaseEventData eventData)
+        {
+            InitConquestMode();
+        }
+
+        public static void InitConquestMode()
+        {
+            isActive = true;
+
+            GameSettings settings = new GameSettings();
+            settings.GameName = "Conquest";
+            settings.GameType = EnumCache<GameType>.GetType("conquest");
+            settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
+            settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+            settings.mapPreset = MapPreset.Dryland;
+            settings.MapSize = 16;
+            settings.OpponentCount = 1;
+
+            settings.SetUnlockedTribes(GameManager.GetPurchaseManager().GetUnlockedTribes(false));
+
+            GameManager.PreliminaryGameSettings = settings;
+            GameManager.StartingTribe = TribeType.Xinxi;
+
+            // Fixed FadeIn with proper delegate conversion
+            UIBlackFader.FadeIn(
+                0.5f,
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(StartConquestGame),
+                "gamesettings.creatingworld",
+                null,
+                new Il2CppSystem.Nullable<UnityEngine.Color>(UnityEngine.Color.black)
+            );
+        }
+
+        // Separate method for the callback (required for Il2Cpp)
+        private static void StartConquestGame()
+        {
+            if (!GameManager.Instance.isLoadingGame)
+            {
+                GameManager.Instance.SetLoadingGame(true);
+                GameManager.Instance.client = new LocalClient();
+                GameManager.Instance.LoadLevel();
+            }
+        }
+    }
+}
