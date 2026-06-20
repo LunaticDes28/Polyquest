@@ -113,9 +113,8 @@ namespace Polyquest
             {
                 Loader.modLogger?.LogInfo("[Conquest-UI] Attempting to bind custom enums onto unmanaged backend parameters cache...");
                 
-                settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
-                Loader.modLogger?.LogInfo("[Conquest-UI] BaseGameMode selected");
-                settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+                // settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
+                // settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
                 
                 Loader.modLogger?.LogInfo($"[Conquest-UI] SUCCESS: Backend rules configured! BaseGameMode: {settings.BaseGameMode} | RulesGameMode: {settings.RulesGameMode}");
             }
