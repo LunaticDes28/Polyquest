@@ -102,12 +102,14 @@ namespace Polyquest
         {
             Loader.modLogger?.LogInfo("[Conquest-UI] Entering ApplyConquestBackendSettings function layer...");
             
-            var settings = GameManager.PreliminaryGameSettings;
+            /*var settings = GameManager.PreliminaryGameSettings;
             if (settings == null)
             {
                 Loader.modLogger?.LogError("[Conquest-UI] Fatal Exception: GameManager.PreliminaryGameSettings is NULL. Cannot apply configurations!");
                 return;
-            }
+            }*/
+
+            GameSettings settings = new GameSettings();
 
             try
             {
@@ -116,8 +118,10 @@ namespace Polyquest
                 var num = EnumCache<GameMode>.GetType("conquest");
                 Loader.modLogger?.LogInfo($"[Conquest-UI] EnumCache: {num}");
 
-                // settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
+                settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
                 settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+
+                GameManager.PreliminaryGameSettings = settings;
                 
                 Loader.modLogger?.LogInfo($"[Conquest-UI] SUCCESS: Backend rules configured! BaseGameMode: {settings.BaseGameMode} | RulesGameMode: {settings.RulesGameMode}");
             }
