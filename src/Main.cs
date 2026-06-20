@@ -15,8 +15,10 @@ namespace Polyquest
         [HarmonyPatch(typeof(GameRules), nameof(GameRules.LoadPreset))]
         private static void GameRules_LoadPreset_Postfix(GameRules __instance, GameMode gameMode)
         {
-            if (gameMode == EnumCache<GameMode>.GetType("conquest") || (int)gameMode == 8)
+                Loader.modLogger.LogInfo("GameRules.LoadPreset");
+            if (gameMode == EnumCache<GameMode>.GetType("conquest"))
             {
+                Loader.modLogger.LogInfo("GameRules.LoadPreset.Conquest");
                 __instance.AllowMirrorPick = false;
                 __instance.AllowTechSharing = false;
                 __instance.AllowSpecialTribes = true;
