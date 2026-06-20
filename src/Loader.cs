@@ -24,12 +24,36 @@ namespace Polyquest
             Harmony.CreateAndPatchAll(typeof(Loader));
             Harmony.CreateAndPatchAll(typeof(GameSetup));
 
+            RegisterCustomGameMode("conquest");
+            
             PolyMod.Loader.AddPatchDataType("mapPreset", typeof(MapPreset));
             PolyMod.Loader.AddPatchDataType("mapSize", typeof(MapSize));
             PolyMod.Loader.AddPatchDataType("gameType", typeof(GameType));
             PolyMod.Loader.AddPatchDataType("gameMode", typeof(GameMode));
         
             modLogger?.LogInfo("[Conquest] Mod initialized");
+        }
+
+        public static void RegisterCustomGameMode(string id)
+        {
+            try
+            {
+                PolyMod.Plugin.logger.LogInfo($"[Conquest-Loader] Initializing custom GameMode registration for key: '{id}'");
+
+                // 1. Double map the string identifier to the next available native index slot
+                EnumCache<GameMode>.AddMapping(id, (GameMode)PolyMod.Registry.gameModesAutoidx);
+                EnumCache<GameMode>.AddMapping(id, (GameMode)PolyMod.Registry.gameModesAutoidx);
+                
+                PolyMod.Plugin.logger.LogInfo($"[Conquest-Loader] EnumCache mapping successfully bound to index: {PolyMod.Registry.gameModesAutoidx}");
+
+                // 2. Increment the auto-index counter to keep memory aligned for other mods
+                PolyMod.Registry.gameModesAutoidx++;
+                PolyMod.Plugin.logger.LogInfo($"[Conquest-Loader] Registration completed. Next index: {PolyMod.Registry.gameModesAutoidx}");
+            }
+            catch (Exception ex)
+            {
+                PolyMod.Plugin.logger.LogError($"[Conquest-Loader] FAILURE: Access violation mapping GameMode enum cache: {ex}");
+            }
         }
     }
 }

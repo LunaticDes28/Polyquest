@@ -10,7 +10,6 @@ namespace Polyquest
 {
     public static class GameSetup
     {
-        // ====================== PURE UI VISUAL INJECTION ======================
         [HarmonyPrefix]
         [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.CreateHorizontalList))]
         private static bool GameSetupScreen_CreateHorizontalList(
@@ -38,7 +37,6 @@ namespace Polyquest
             return true;
         }
 
-        // ====================== SAFE RE-ROUTED EVENT HANDLERS ======================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.OnGameModeChanged))]
         public static void OnGameModeChanged_Postfix(GameSetupScreen __instance, int index)
@@ -71,7 +69,6 @@ namespace Polyquest
                 return;
             }
 
-            // Extract the active index directly from the highlighted element using capital letters
             int activeVisualIndex = instance.gameModeList.SelectedIndex;
             Loader.modLogger?.LogInfo($"[Conquest-UI] Current active menu highlighted item index reads: {activeVisualIndex}");
 
@@ -83,7 +80,7 @@ namespace Polyquest
                     string selectedText = activeItem.text.ToString();
                     Loader.modLogger?.LogInfo($"[Conquest-UI] Extracted visual text string from highlighted item slot: '{selectedText}'");
 
-                    // If the text label matches, call our separated custom settings applicator handler
+                    // If the text label matches, call the separated custom settings applicator handler
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
                         Loader.modLogger?.LogInfo("[Conquest-UI] TEXT MATCH CONFIRMED! Routing to background settings modifier function...");
@@ -101,7 +98,6 @@ namespace Polyquest
             }
         }
 
-        // ====================== SEPARATED SETTINGS HANDLER ======================
         private static void ApplyConquestBackendSettings(GameSetupScreen instance)
         {
             Loader.modLogger?.LogInfo("[Conquest-UI] Entering ApplyConquestBackendSettings function layer...");
@@ -117,7 +113,6 @@ namespace Polyquest
             {
                 Loader.modLogger?.LogInfo("[Conquest-UI] Attempting to bind custom enums onto unmanaged backend parameters cache...");
                 
-                // Directly rewrite backend engine modes parameters 
                 settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
                 settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
                 

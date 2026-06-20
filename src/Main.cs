@@ -199,7 +199,7 @@ namespace Polyquest
             int addition = (int)state.CurrentTurn;   // +1 per turn
             addition = Math.Min(addition, techData.cost * 5);    // Cap at 5x
 
-            __result = (int)Math.Ceiling((double)(__result + addition));
+            __result = (int)Math.Ceiling((double)(techData.cost + addition));
         }
 
         [HarmonyPrefix]
