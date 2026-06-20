@@ -29,77 +29,159 @@ namespace Polyquest
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.Show))]
-        private static void RegisterConquestEnum()
-        {
-            EnumCache<GameMode>.GetType("conquest");
-        }
-
-        [HarmonyPrefix]
-        [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
-        private static void ConquestCityDistribution(MapGenerator __instance, GameState gameState, MapGeneratorSettings settings)
+        [HarmonyPatch(nameof(MapGenerator.GenerateInternal))]
+        private static void GenerateInternal_Postfix(MapGenerator __instance, GameState gameState, MapGeneratorSettings settings)
         {
             bool isConquest = gameState.Settings.RulesGameMode == EnumCache<GameMode>.GetType("conquest") || 
-                            gameState.Settings.BaseGameMode == EnumCache<GameMode>.GetType("conquest");
+                              gameState.Settings.BaseGameMode == EnumCache<GameMode>.GetType("conquest");
 
             if (!isConquest) return;
 
-            Log.Info("{0} Conquest mode active", "<color=#639ad8>[MapGenerator]</color>");
-
-            int desiredCities = (int)(gameState.Map.Tiles.Length * 0.085f);
-
-            Il2CppSystem.Collections.Generic.List<int> cities = new Il2CppSystem.Collections.Generic.List<int>();
-
-            __instance.GeneratePreTerrainCities(gameState.Map, cities, desiredCities / 2);
-            __instance.AddPostTerrainCities(gameState.Map, desiredCities - cities.Count);
-
-            DistributeConquestCities(__instance, gameState.Map, gameState);
+            Loader.modLogger!.LogInfo("[Conquest] Initializing vanilla Manhattan-proximity equal village distribution...");
+            DistributeProximityVillages(__instance, gameState.Map, gameState);
         }
 
-        private static void DistributeConquestCities(MapGenerator gen, MapData map, GameState state)
+        private static void DistributeProximityVillages(MapGenerator gen, MapData map, GameState state)
         {
-            List<int> cityList = new List<int>();
+            int playerCount = state.PlayerCount;
+            if (playerCount == 0) return;
 
+            // 1. Gather existing unowned neutral villages
+            List<TileData> neutralVillages = new List<TileData>();
             for (int i = 0; i < map.Tiles.Length; i++)
             {
-                if (map.Tiles[i].HasImprovement(ImprovementData.Type.City))
-                    cityList.Add(i);
+                TileData tile = map.Tiles[i];
+                if (tile.HasImprovement(ImprovementData.Type.City) && tile.owner == 0)
+                {
+                    neutralVillages.Add(tile);
+                }
             }
 
-            ShuffleList(cityList);
-            int playerCount = state.PlayerCount;
+            int remainder = neutralVillages.Count % playerCount;
 
-            for (int i = 0; i < cityList.Count; i++)
+            // 2. Threshold Rule: Spawn emergency villages if close to another full tier
+            if (remainder > 0 && remainder >= (playerCount * 0.6f))
             {
-                TileData tile = map.Tiles[cityList[i]];
-                PlayerState player = state.PlayerStates[i % playerCount];
-                SetAsConquestCity(tile, player);
+                int citiesToSpawn = playerCount - remainder;
+                Loader.modLogger!.LogInfo($"[Conquest] Spawning {citiesToSpawn} emergency villages to complete tier.");
+
+                for (int s = 0; s < citiesToSpawn; s++)
+                {
+                    WorldCoordinates emergencyCoords = gen.GetEmergencyCityPosition(state, map);
+                    if (emergencyCoords != WorldCoordinates.NULL_COORDINATES)
+                    {
+                        int tileIndex = map.GetTileIndex(emergencyCoords);
+                        TileData targetTile = map.Tiles[tileIndex];
+                        targetTile.improvement = new ImprovementState
+                        {
+                            type = ImprovementData.Type.City,
+                            founded = 0,
+                            level = 1,
+                            borderSize = 1,
+                            production = 1
+                        };
+                        neutralVillages.Add(targetTile);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
             }
+
+            int totalVillages = neutralVillages.Count;
+            int maxCitiesPerPlayer = totalVillages / playerCount;
+
+            Loader.modLogger!.LogInfo($"[Conquest] Total pool: {totalVillages} villages. Allocating {maxCitiesPerPlayer} closest villages per player.");
+
+            HashSet<WorldCoordinates> assignedCoordinates = new HashSet<WorldCoordinates>();
+
+            // 3. Tiered Handout Loop using the native grid system calculation
+            for (int round = 0; round < maxCitiesPerPlayer; round++)
+            {
+                for (int p = 0; p < playerCount; p++)
+                {
+                    PlayerState player = state.PlayerStates[p];
+                    WorldCoordinates capitalCoords = player.startTile;
+
+                    TileData closestVillage = null;
+                    int closestDistance = int.MaxValue;
+
+                    foreach (var village in neutralVillages)
+                    {
+                        if (assignedCoordinates.Contains(village.coordinates)) 
+                            continue;
+
+                        // INTEGRATED VANILLA METHOD: Use the exact Manhattan distance calculation
+                        int distance = MapDataExtensions.ManhattanDistance(capitalCoords, village.coordinates);
+                        if (distance < closestDistance)
+                        {
+                            closestDistance = distance;
+                            closestVillage = village;
+                        }
+                    }
+
+                    if (closestVillage != null)
+                    {
+                        assignedCoordinates.Add(closestVillage.coordinates);
+                        InitializeConquestCityData(state, closestVillage, player);
+                    }
+                }
+            }
+
+            // 4. Convert leftover unassigned outer frontier villages into neutral Ruins
+            int ruinsCount = 0;
+            foreach (var village in neutralVillages)
+            {
+                if (!assignedCoordinates.Contains(village.coordinates))
+                {
+                    village.improvement = new ImprovementState
+                    {
+                        type = ImprovementData.Type.Ruin,
+                        borderSize = 0,
+                        level = 1,
+                        production = 1,
+                        founded = 0
+                    };
+                    village.owner = 0;
+                    ruinsCount++;
+                }
+            }
+
+            Loader.modLogger!.LogInfo($"[Conquest] Proximity distribution done. Assigned {assignedCoordinates.Count} cities. Created {ruinsCount} ruins.");
         }
 
-        private static void ShuffleList(List<int> list, System.Random random = null)
+        private static void InitializeConquestCityData(GameState state, TileData tile, PlayerState player)
         {
-            if (random == null) random = new System.Random();
-            for (int i = list.Count - 1; i > 0; i--)
+            try
             {
-                int j = random.Next(i + 1);
-                (list[i], list[j]) = (list[j], list[i]);
-            }
-        }
+                tile.owner = player.Id;
 
-        private static void SetAsConquestCity(TileData tile, PlayerState player)
-        {
-            tile.owner = player.Id;
-            tile.improvement = new ImprovementState
+                TribeData tribeData;
+                if (state.GameLogicData.TryGetData(player.tribe, out tribeData) && tribeData != null)
+                {
+                    string generatedName = MapDataExtensions.GenerateCityName(state, tile.coordinates, tribeData.language);
+                    
+                    if (tile.improvement != null)
+                    {
+                        tile.improvement.name = generatedName;
+                    }
+                }
+
+                player.cities++;
+
+                Il2CppSystem.Collections.Generic.List<TileData> cityArea = ActionUtils.GetCityAreaSorted(state, tile);
+                for (int j = 0; j < cityArea.Count; j++)
+                {
+                    TileData territoryTile = cityArea[j];
+                    territoryTile.owner = player.Id;
+                    territoryTile.rulingCityCoordinates = tile.coordinates;
+                }
+            }
+            catch (Exception ex)
             {
-                type = ImprovementData.Type.City,
-                level = 1,
-                borderSize = 2,
-                production = 1,
-                founded = 0
-            };
-            tile.capitalOf = 0;
-            player.cities++;
+                Loader.modLogger!.LogError($"[Conquest] Failed to safely assign proximity city parameters: {ex}");
+            }
         }
 
         [HarmonyPostfix]
