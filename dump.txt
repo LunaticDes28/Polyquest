@@ -87,3 +87,36 @@ namespace Polyquest
                 
                 // Reassign back to the referenced IL2CPP array for the UI to draw
                 items = cachedGameModes.ToArray();
+
+        // ====================== INTERCEPT THE CRASH ======================
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.OnGameModeChanged))]
+        [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.OnCustomGameModeChanged))]
+        private static void GameSetupScreen_OnGameModeChanged_Postfix(GameSetupScreen __instance, int index)
+        {
+            Loader.modLogger!.LogInfo("[Conquest] Game mode changed");
+            Loader.modLogger!.LogInfo(index);
+
+            // Use the explicit game settings to determine the actual game type structure
+            int adjustedIndex = index;
+            if (GameManager.PreliminaryGameSettings.GameType != GameType.Matchmaking)
+            {
+                adjustedIndex++;
+            }
+
+            // Check if index points outside standard game enum values, indicating your custom mode selection
+            if (adjustedIndex >= Enum.GetValues<GameMode>().Length)
+            {
+                var settings = GameManager.PreliminaryGameSettings;
+                if (settings != null)
+                {
+                    // Directly apply the custom mode from your internal mod configuration
+                    settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
+                    settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+                    
+                    // Re-draw screen details utilizing the game instance's primary lifecycle method
+                    __instance.RefreshInfo();
+                    Loader.modLogger!.LogInfo("[Conquest] Custom game mode applied successfully");
+                }
+            }
+        }

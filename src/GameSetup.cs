@@ -9,8 +9,7 @@ namespace Polyquest
 {
     public static class GameSetup
     {
-        // Tracks our modified string layout so OnGameModeChanged can read it instantly
-        private static bool isConquestSelected = false;
+        private static bool _isProcessingCustomMode = false;
 
         // ====================== CONQUEST MODE ADDITION ======================
 
@@ -38,34 +37,59 @@ namespace Polyquest
             return true;
         }
 
-        // ====================== INTERCEPT THE CRASH ======================
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.OnGameModeChanged))]
-        private static void GameSetupScreen_OnGameModeChanged_Postfix(GameSetupScreen __instance, int index)
+        [HarmonyPatch(nameof(GameSetupScreen.OnGameModeChanged))]
+        public static void OnGameModeChanged_Postfix(GameSetupScreen __instance, int index)
         {
-            Loader.modLogger!.LogInfo("[Conquest] Game mode changed");
-            Loader.modLogger!.LogInfo(index);
+            ProcessGameModeChange(__instance, index);
+        }
 
-            // Use the explicit game settings to determine the actual game type structure
+        [HarmonyPostfix]
+        [HarmonyPatch(nameof(GameSetupScreen.OnCustomGameModeChanged))]
+        public static void OnCustomGameModeChanged_Postfix(GameSetupScreen __instance, int index)
+        {
+            ProcessGameModeChange(__instance, index);
+        }
+
+        private static void ProcessGameModeChange(GameSetupScreen instance, int index)
+        {
+            
+            Loader.modLogger!.LogInfo($"[Conquest] Game mode changed, raw index: {index}");
+
+            if (_isProcessingCustomMode) return;
+
             int adjustedIndex = index;
-            if (GameManager.PreliminaryGameSettings.GameType != GameType.Matchmaking)
+            if (GameManager.PreliminaryGameSettings?.GameType != GameType.Matchmaking)
             {
                 adjustedIndex++;
             }
 
-            // Check if index points outside standard game enum values, indicating your custom mode selection
+            // Verify index exceeds base game configurations safely
             if (adjustedIndex >= Enum.GetValues<GameMode>().Length)
             {
                 var settings = GameManager.PreliminaryGameSettings;
                 if (settings != null)
                 {
-                    // Directly apply the custom mode from your internal mod configuration
-                    settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
-                    settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
-                    
-                    // Re-draw screen details utilizing the game instance's primary lifecycle method
-                    __instance.RefreshInfo();
-                    Loader.modLogger!.LogInfo("[Conquest] Custom game mode applied successfully");
+                    try
+                    {
+                        _isProcessingCustomMode = true;
+
+                        // Safely apply custom enum strings
+                        settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
+                        settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+
+                        // Re-draw screen details safely
+                        instance.RefreshInfo();
+                        Loader.modLogger!.LogInfo("[Conquest] Custom game mode applied successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        Loader.modLogger!.LogError($"[Conquest] Failed to refresh UI: {ex}");
+                    }
+                    finally
+                    {
+                        _isProcessingCustomMode = false;
+                    }
                 }
             }
         }
