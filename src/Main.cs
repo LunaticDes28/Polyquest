@@ -16,6 +16,7 @@ namespace Polyquest
         private static void GameRules_LoadPreset_Postfix(GameRules __instance, GameMode gameMode)
         {
                 Loader.modLogger.LogInfo("GameRules.LoadPreset");
+                
             if (gameMode == EnumCache<GameMode>.GetType("conquest"))
             {
                 Loader.modLogger.LogInfo("GameRules.LoadPreset.Conquest");
