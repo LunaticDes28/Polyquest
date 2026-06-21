@@ -10,11 +10,14 @@
 		}
 	},
 	"gameRules": {
+		"Perfection": {
+		"conquest": false
+		},
 		"Domination": {
 		"conquest": false
 		},
-		"Might": {
-		"conquest": false
+		"Sandbox": {
+			"conquest": false
 		}
 	}
 }

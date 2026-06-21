@@ -65,7 +65,7 @@ public static class Parse
             if (token == null) continue;
 
             string name = token.Path.Split('.').Last();
-            Loader.modLogger?.LogInfo($"  Checking improvement: {name}");
+            Loader.modLogger?.LogInfo($"  Checking type: {name}");
 
             if (!EnumCache<targetType>.TryGetType(name, out var type))
             {

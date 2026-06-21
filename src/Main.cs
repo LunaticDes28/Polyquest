@@ -53,7 +53,7 @@ namespace Polyquest
             // 4. RESET THE DOMINATION DICTIONARY FLAG IMMEDIATELY!
             // This un-hijacks the normal Domination mode so players can play standard matches next time.
             Loader.SetConquestMode(gameState.Settings, false);
-            Loader.modLogger?.LogInfo("[Conquest-Map] Map generated. Domination flag safely reset to false.");
+            Loader.modLogger?.LogInfo("[Conquest-Map] Map generated. Conquest flag safely reset to false.");
         }
 
         private static void DistributeProximityVillages(MapGenerator gen, MapData map, GameState state)
@@ -241,7 +241,7 @@ namespace Polyquest
         {
             if (state == null || techData == null) return;
 
-        bool isConquest = Loader.IsConquestMode(state);
+            bool isConquest = Loader.IsConquestMode(state);
             
             if (!isConquest) return;
 
