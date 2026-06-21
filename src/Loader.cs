@@ -26,10 +26,9 @@ namespace Polyquest
 
             RegisterCustomGameMode("conquest");
 
-            PolyMod.Loader.AddPatchDataType("mapPreset", typeof(MapPreset));
-            PolyMod.Loader.AddPatchDataType("mapSize", typeof(MapSize));
             PolyMod.Loader.AddPatchDataType("gameType", typeof(GameType));
             PolyMod.Loader.AddPatchDataType("gameMode", typeof(GameMode));
+            PolyMod.Loader.AddPatchDataType("gameRules", typeof(GameRules));
         
             modLogger?.LogInfo("[Conquest] Mod initialized");
         }

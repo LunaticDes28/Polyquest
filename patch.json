@@ -1,14 +1,4 @@
 {
-	"mapPreset": {
-		"custom": {
-			"idx": -1
-		}
-	},
-	"mapSize": {
-		"custom": {
-			"idx": -1
-		}
-	},
 	"gameType": {
 		"conquest": {
 			"idx": -1
@@ -18,5 +8,8 @@
 		"conquest": {
 			"idx": -1
 		}
+	},
+	"gameRules": {
+		"conquest": false
 	}
 }

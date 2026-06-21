@@ -11,7 +11,7 @@ namespace Polyquest
 {
     public static class GameSetup
     {
-        internal static bool conquestSelected = false;
+        // internal static bool conquestSelected = false;
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.CreateHorizontalList))]
@@ -87,8 +87,14 @@ namespace Polyquest
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
                         Loader.modLogger?.LogInfo("[Conquest-UI] TEXT MATCH CONFIRMED! Routing to background settings modifier function...");
-                        conquestSelected = true;
                         // ApplyConquestBackendSettings(instance);
+
+                        var settings = GameManager.PreliminaryGameSettings;
+                        if (settings != null)
+                        {
+                            Parse.SetConquestMode(true);
+                            // conquestSelected = true;
+                        }
                     }
                     else
                     {
