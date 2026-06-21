@@ -11,6 +11,35 @@ namespace Polyquest
 {
     public static class Main
     {
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.LoadLevel))]
+        private static void ApplyConquestSettingsBeforeLoad()
+        {
+            if (!GameSetup.conquestSelected) return;   // Note: make conquestSelected public or use a property
+            Loader.modLogger?.LogInfo("[Conquest] Conquest Mode selected");
+
+            var settings = GameManager.PreliminaryGameSettings;
+            if (settings == null) return;
+
+            try
+            {
+                const int ConquestId = 8;
+
+                // settings.BaseGameMode = (GameMode)ConquestId;
+                settings.RulesGameMode = (GameMode)ConquestId;
+                Loader.modLogger?.LogInfo("[Conquest] Mode Settings Updated");
+
+                settings.rules.LoadPreset((GameMode)ConquestId);
+
+                Loader.modLogger?.LogInfo("[Conquest] Settings applied safely before LoadLevel");
+                GameSetup.conquestSelected = false;
+            }
+            catch (Exception ex)
+            {
+                Loader.modLogger?.LogError($"[Conquest] Failed to apply settings: {ex}");
+            }
+        }
+
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameRules), nameof(GameRules.LoadPreset))]
         private static void GameRules_LoadPreset_Postfix(GameRules __instance, GameMode gameMode)
@@ -215,9 +244,9 @@ namespace Polyquest
             } 
 
 		TileData cityTile = gameState.Map.GetTile(__instance.Coordinates);
-		PlayerState playerState;
-		gameState.TryGetPlayer(__instance.PlayerId, out playerState);
-            DestroyCityConquest(gameState, cityTile, playerState);
+		PlayerState attacker;
+		gameState.TryGetPlayer(__instance.PlayerId, out attacker);
+            DestroyCityConquest(gameState, cityTile, attacker);
             return false;
         }
 

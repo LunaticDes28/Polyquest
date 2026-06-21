@@ -4,12 +4,15 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Il2CppInterop.Runtime.InteropTypes.Arrays; 
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using UnityEngine.EventSystems;
 
 namespace Polyquest
 {
     public static class GameSetup
     {
+        internal static bool conquestSelected = false;
+
         [HarmonyPrefix]
         [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.CreateHorizontalList))]
         private static bool GameSetupScreen_CreateHorizontalList(
@@ -84,7 +87,8 @@ namespace Polyquest
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
                         Loader.modLogger?.LogInfo("[Conquest-UI] TEXT MATCH CONFIRMED! Routing to background settings modifier function...");
-                        ApplyConquestBackendSettings(instance);
+                        conquestSelected = true;
+                        // ApplyConquestBackendSettings(instance);
                     }
                     else
                     {
@@ -102,14 +106,12 @@ namespace Polyquest
         {
             Loader.modLogger?.LogInfo("[Conquest-UI] Entering ApplyConquestBackendSettings function layer...");
             
-            /*var settings = GameManager.PreliminaryGameSettings;
-            if (settings == null)
+            // var settings = GameManager.PreliminaryGameSettings;
+            if (GameManager.PreliminaryGameSettings == null)
             {
                 Loader.modLogger?.LogError("[Conquest-UI] Fatal Exception: GameManager.PreliminaryGameSettings is NULL. Cannot apply configurations!");
                 return;
-            }*/
-
-            GameSettings settings = new GameSettings();
+            }
 
             try
             {
@@ -118,12 +120,12 @@ namespace Polyquest
                 var num = EnumCache<GameMode>.GetType("conquest");
                 Loader.modLogger?.LogInfo($"[Conquest-UI] EnumCache: {num}");
 
-                settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
-                settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+                GameManager.PreliminaryGameSettings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
 
-                GameManager.PreliminaryGameSettings = settings;
-                
-                Loader.modLogger?.LogInfo($"[Conquest-UI] SUCCESS: Backend rules configured! BaseGameMode: {settings.BaseGameMode} | RulesGameMode: {settings.RulesGameMode}");
+                // settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
+                // settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
+
+                Loader.modLogger?.LogInfo($"[Conquest-UI] SUCCESS: Backend rules configured! BaseGameMode: {GameManager.PreliminaryGameSettings.BaseGameMode} | RulesGameMode: {GameManager.PreliminaryGameSettings.RulesGameMode}");
             }
             catch (Exception ex)
             {
