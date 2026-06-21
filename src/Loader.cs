@@ -37,22 +37,35 @@ namespace Polyquest
         {
             try
             {
-                modLogger.LogInfo($"[Conquest-Loader] Initializing custom GameMode registration for key: '{id}'");
+                modLogger?.LogInfo($"[Conquest-Loader] Initializing custom GameMode registration for key: '{id}'");
 
                 // 1. Double map the string identifier to the next available native index slot
                 EnumCache<GameMode>.AddMapping(id, (GameMode)PolyMod.Registry.gameModesAutoidx);
                 EnumCache<GameMode>.AddMapping(id, (GameMode)PolyMod.Registry.gameModesAutoidx);
                 
-                modLogger.LogInfo($"[Conquest-Loader] EnumCache mapping successfully bound to index: {PolyMod.Registry.gameModesAutoidx}");
+                modLogger?.LogInfo($"[Conquest-Loader] EnumCache mapping successfully bound to index: {PolyMod.Registry.gameModesAutoidx}");
 
                 // 2. Increment the auto-index counter to keep memory aligned for other mods
                 PolyMod.Registry.gameModesAutoidx++;
-                modLogger.LogInfo($"[Conquest-Loader] Registration completed. Next index: {PolyMod.Registry.gameModesAutoidx}");
+                modLogger?.LogInfo($"[Conquest-Loader] Registration completed. Next index: {PolyMod.Registry.gameModesAutoidx}");
             }
             catch (Exception ex)
             {
-                modLogger.LogError($"[Conquest-Loader] FAILURE: Access violation mapping GameMode enum cache: {ex}");
+                modLogger?.LogError($"[Conquest-Loader] FAILURE: Access violation mapping GameMode enum cache: {ex}");
             }
+        }
+        // GAMEMODES //
+        private static bool _isConquestMode = false;
+
+        public static void SetConquestMode(bool value)
+        {
+            _isConquestMode = value;
+            modLogger?.LogInfo($"[Conquest] Global flag set to: {value}");
+        }
+
+        public static bool IsConquestMode()
+        {
+            return _isConquestMode;
         }
     }
 }

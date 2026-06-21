@@ -11,7 +11,7 @@ namespace Polyquest
 {
     public static class GameSetup
     {
-        // internal static bool conquestSelected = false;
+        internal static bool conquestSelected = false;
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.CreateHorizontalList))]
@@ -86,56 +86,28 @@ namespace Polyquest
                     // If the text label matches, call the separated custom settings applicator handler
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
-                        Loader.modLogger?.LogInfo("[Conquest-UI] TEXT MATCH CONFIRMED! Routing to background settings modifier function...");
-                        // ApplyConquestBackendSettings(instance);
+                        Loader.modLogger?.LogInfo("[Conquest-UI] Conquest selected → Setting flag");
+                        conquestSelected = true;
+                        Loader.SetConquestMode(true);
 
-                        var settings = GameManager.PreliminaryGameSettings;
-                        if (settings != null)
-                        {
-                            Parse.SetConquestMode(true);
-                            // conquestSelected = true;
-                        }
+                        GameManager.PreliminaryGameSettings.rules.LoadPreset((GameMode)8);
+                        Loader.modLogger?.LogInfo("[Conquest-UI] SUCCESS - Loaded Preset");
+
                     }
                     else
                     {
-                        Loader.modLogger?.LogInfo($"[Conquest-UI] Active highlighted text '{selectedText}' does not match 'Conquest'. Mod settings skipped.");
+                        if (conquestSelected)
+                        {
+                            Loader.modLogger?.LogInfo($"[Conquest-UI] Switched away from Conquest → Resetting flag");
+                            conquestSelected = false;
+                            Loader.SetConquestMode(false);
+                        }
                     }
                 }
             }
             else
             {
                 Loader.modLogger?.LogWarning($"[Conquest-UI] Active index {activeVisualIndex} is out of bounds (0 to {instance.gameModeList.items.Count - 1}). skipping.");
-            }
-        }
-
-        private static void ApplyConquestBackendSettings(GameSetupScreen instance)
-        {
-            Loader.modLogger?.LogInfo("[Conquest-UI] Entering ApplyConquestBackendSettings function layer...");
-            
-            // var settings = GameManager.PreliminaryGameSettings;
-            if (GameManager.PreliminaryGameSettings == null)
-            {
-                Loader.modLogger?.LogError("[Conquest-UI] Fatal Exception: GameManager.PreliminaryGameSettings is NULL. Cannot apply configurations!");
-                return;
-            }
-
-            try
-            {
-                Loader.modLogger?.LogInfo("[Conquest-UI] Attempting to bind custom enums onto unmanaged backend parameters cache...");
-                
-                var num = EnumCache<GameMode>.GetType("conquest");
-                Loader.modLogger?.LogInfo($"[Conquest-UI] EnumCache: {num}");
-
-                GameManager.PreliminaryGameSettings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
-
-                // settings.BaseGameMode = EnumCache<GameMode>.GetType("conquest");
-                // settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
-
-                Loader.modLogger?.LogInfo($"[Conquest-UI] SUCCESS: Backend rules configured! BaseGameMode: {GameManager.PreliminaryGameSettings.BaseGameMode} | RulesGameMode: {GameManager.PreliminaryGameSettings.RulesGameMode}");
-            }
-            catch (Exception ex)
-            {
-                Loader.modLogger?.LogError($"[Conquest-UI] System Crash intercepted inside settings injection block: {ex}");
             }
         }
     }

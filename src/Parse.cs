@@ -1,4 +1,4 @@
-using BepInEx.Logging;
+/*using BepInEx.Logging;
 using HarmonyLib;
 using Polytopia.Data;
 using UnityEngine;
@@ -269,4 +269,4 @@ public static class Parse
     {
         return _isConquestMode;
     }
-}
+}*/

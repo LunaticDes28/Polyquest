@@ -16,10 +16,9 @@ namespace Polyquest
         private static void GameRules_LoadPreset_Postfix(GameRules __instance, GameMode gameMode)
         {
                 Loader.modLogger?.LogInfo("GameRules.LoadPreset");
-                bool isConquest = Parse.IsConquestMode();
+                bool isConquest = Loader.IsConquestMode();
                 
-            // if (gameMode == EnumCache<GameMode>.GetType("conquest"))
-            if (isConquest)
+            if (gameMode == EnumCache<GameMode>.GetType("conquest"))
             {   
                 Loader.modLogger?.LogInfo("GameRules.LoadPreset.Conquest");
                 __instance.AllowMirrorPick = false;
@@ -37,8 +36,7 @@ namespace Polyquest
         [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
         private static void GenerateInternal_Postfix(MapGenerator __instance, GameState gameState, MapGeneratorSettings settings)
         {
-            bool isConquest = gameState.Settings.RulesGameMode == EnumCache<GameMode>.GetType("conquest") || 
-                              gameState.Settings.BaseGameMode == EnumCache<GameMode>.GetType("conquest");
+            bool isConquest = Loader.IsConquestMode();
 
             if (!isConquest) return;
 
@@ -195,9 +193,8 @@ namespace Polyquest
         {
             if (state == null || techData == null) return;
 
-            bool isConquest = state.Settings.RulesGameMode == EnumCache<GameMode>.GetType("conquest") || 
-                            state.Settings.BaseGameMode == EnumCache<GameMode>.GetType("conquest");
-
+            bool isConquest = Loader.IsConquestMode();
+            
             if (!isConquest) return;
 
             // Tech becomes more expensive over time in Conquest mode
@@ -211,7 +208,8 @@ namespace Polyquest
         [HarmonyPatch(typeof(CaptureCityAction), nameof(CaptureCityAction.ExecuteDefault))]   // Change if method name is different
         private static bool Conquest_CaptureCityAction_Prefix(CaptureCityAction __instance, GameState gameState)
         {
-            if (gameState.Settings.RulesGameMode != EnumCache<GameMode>.GetType("conquest"))
+            bool isConquest = Loader.IsConquestMode();
+            if (!isConquest)
             {
                 return true;
             } 
