@@ -23,6 +23,7 @@ namespace Polyquest
             Harmony.CreateAndPatchAll(typeof(Main));
             Harmony.CreateAndPatchAll(typeof(Loader));
             Harmony.CreateAndPatchAll(typeof(GameSetup));
+            Harmony.CreateAndPatchAll(typeof(Parse));
 
             RegisterCustomGameMode("conquest");
 
@@ -55,17 +56,23 @@ namespace Polyquest
             }
         }
         // GAMEMODES //
-        private static bool _isConquestMode = false;
-
-        public static void SetConquestMode(bool value)
+        public static void SetConquestMode(GameSettings settings, bool enabled)
         {
-            _isConquestMode = value;
-            modLogger?.LogInfo($"[Conquest] Global flag set to: {value}");
+            if (settings == null) return;
+            Parse.conquestModeFlags[settings.RulesGameMode] = enabled;
+            modLogger?.LogInfo($"[Conquest] Persistent flag set to {enabled} for mode {settings.RulesGameMode}");
         }
 
-        public static bool IsConquestMode()
+        public static bool IsConquestMode(GameState state)
         {
-            return _isConquestMode;
+            if (state?.Settings == null) return false;
+            return Parse.conquestModeFlags.TryGetValue(state.Settings.RulesGameMode, out bool val) && val;
+        }
+
+        public static bool IsConquestMode(GameSettings settings)
+        {
+            if (settings == null) return false;
+            return Parse.conquestModeFlags.TryGetValue(settings.RulesGameMode, out bool val) && val;
         }
     }
 }

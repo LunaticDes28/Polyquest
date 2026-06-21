@@ -11,7 +11,7 @@ namespace Polyquest
 {
     public static class GameSetup
     {
-        internal static bool conquestSelected = false;
+        // internal static bool conquestSelected = false;
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(GameSetupScreen), nameof(GameSetupScreen.CreateHorizontalList))]
@@ -87,20 +87,16 @@ namespace Polyquest
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
                         Loader.modLogger?.LogInfo("[Conquest-UI] Conquest selected → Setting flag");
-                        conquestSelected = true;
-                        Loader.SetConquestMode(true);
-
-                        GameManager.PreliminaryGameSettings.rules.LoadPreset((GameMode)8);
-                        Loader.modLogger?.LogInfo("[Conquest-UI] SUCCESS - Loaded Preset");
-
+                        Loader.SetConquestMode(GameManager.PreliminaryGameSettings, true);
+                        Loader.modLogger?.LogInfo("[Conquest-UI] SUCCESS: Conquest mode dictionary flag successfully set to TRUE.");
                     }
                     else
                     {
-                        if (conquestSelected)
+                        if (Loader.IsConquestMode(GameManager.PreliminaryGameSettings))
                         {
                             Loader.modLogger?.LogInfo($"[Conquest-UI] Switched away from Conquest → Resetting flag");
-                            conquestSelected = false;
-                            Loader.SetConquestMode(false);
+                            Loader.SetConquestMode(GameManager.PreliminaryGameSettings, false);
+                            Loader.modLogger?.LogInfo("[Conquest-UI] SUCCESS: Conquest mode dictionary flag successfully set to FALSE.");                        
                         }
                     }
                 }

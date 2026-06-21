@@ -10,6 +10,11 @@
 		}
 	},
 	"gameRules": {
+		"Domination": {
 		"conquest": false
+		},
+		"Might": {
+		"conquest": false
+		}
 	}
 }

@@ -1,4 +1,4 @@
-/*using BepInEx.Logging;
+using BepInEx.Logging;
 using HarmonyLib;
 using Polytopia.Data;
 using UnityEngine;
@@ -19,33 +19,20 @@ using PolytopiaBackendBase.Game;
 namespace Polyquest;
 public static class Parse
 {
-    public static ManualLogSource modLogger;
-    public static void Load(ManualLogSource logger)
-    {
-        modLogger = logger;
-        Harmony.CreateAndPatchAll(typeof(Parse));
-        logger.LogInfo("Parse Loaded!");
-    }
-
-    public static Dictionary<GameMode, bool> conquestMode = new Dictionary<GameMode, bool>();
+    public static Dictionary<GameMode, bool> conquestModeFlags = new Dictionary<GameMode, bool>();
 
     [HarmonyPrefix]
     [HarmonyPriority(Priority.Last)]
     [HarmonyPatch(typeof(GameLogicData), nameof(GameLogicData.AddGameLogicPlaceholders))]
     private static void GameLogicData_Parse(GameLogicData __instance, JObject rootObject)
     {
-        modLogger.LogInfo("=== Starting parsing ===");
+        Loader.modLogger?.LogInfo("=== Starting parsing ===");
         
-    ParsePerEach(rootObject, "GameRules", "conquest", conquestMode);
+        ParsePerEach(rootObject, "gameRules", "conquest", conquestModeFlags);
 
-    modLogger.LogInfo($"Parsed conquest mode entries: {conquestMode.Count}");
-        
-        // Debug what we actually have
-        foreach (var kvp in conquestMode)
-        {
-            modLogger.LogInfo($"  → {kvp.Key} = [{string.Join(", ", kvp.Value)}]");
-        }
+        Loader.modLogger?.LogInfo($"Parsed conquest mode entries: {conquestModeFlags.Count}");
     }
+
     public static void ParsePerEach<targetType, T>(
         JObject rootObject,
         string categoryName,
@@ -54,7 +41,7 @@ public static class Parse
         string[]? nestedContainers = null)
         where targetType : struct, System.IConvertible
     {
-        modLogger.LogInfo($"ParsePerEach: Looking for {categoryName}.{fieldName}");
+        Loader.modLogger?.LogInfo($"ParsePerEach: Looking for {categoryName}.{fieldName}");
 
         // Safest way to get tokens without foreach
         var tokenEnumerable = rootObject.SelectTokens($"$.{categoryName}.*");
@@ -70,7 +57,7 @@ public static class Parse
             catch { break; }
         }
 
-        modLogger.LogInfo($"Found {tokens.Count} entries in {categoryName}");
+        Loader.modLogger?.LogInfo($"Found {tokens.Count} entries in {categoryName}");
 
         for (int i = 0; i < tokens.Count; i++)
         {
@@ -78,15 +65,15 @@ public static class Parse
             if (token == null) continue;
 
             string name = token.Path.Split('.').Last();
-            modLogger.LogInfo($"  Checking improvement: {name}");
+            Loader.modLogger?.LogInfo($"  Checking improvement: {name}");
 
             if (!EnumCache<targetType>.TryGetType(name, out var type))
             {
-                modLogger.LogInfo($"    → EnumCache failed for {name}");
+                Loader.modLogger?.LogInfo($"    → EnumCache failed for {name}");
                 continue;
             }
 
-            modLogger.LogInfo($"    → Enum resolved: {type}");
+            Loader.modLogger?.LogInfo($"    → Enum resolved: {type}");
 
             T? value = default;
 
@@ -96,7 +83,7 @@ public static class Parse
                 if (value != null)
                 {
                     dict[type] = value;
-                    modLogger.LogInfo($"    SUCCESS (top-level) for {type}");
+                    Loader.modLogger?.LogInfo($"    SUCCESS (top-level) for {type}");
                 }
                 continue;
             }
@@ -107,14 +94,14 @@ public static class Parse
                 for (int c = 0; c < nestedContainers.Length; c++)
                 {
                     string container = nestedContainers[c];
-                    modLogger.LogInfo($"    Checking nested container: {container}");
+                    Loader.modLogger?.LogInfo($"    Checking nested container: {container}");
 
                     if (TryFindInNested(token, container, fieldName, out value))
                     {
                         if (value != null)
                         {
                             dict[type] = value;
-                            modLogger.LogInfo($"    ✅ SUCCESS! Parsed {fieldName} for {type} = {value}");
+                            Loader.modLogger?.LogInfo($"    ✅ SUCCESS! Parsed {fieldName} for {type} = {value}");
                         }
                         break;
                     }
@@ -122,7 +109,7 @@ public static class Parse
             }
         }
 
-        modLogger.LogInfo($"ParsePerEach finished. Total entries in dict: {dict.Count}");
+        Loader.modLogger?.LogInfo($"ParsePerEach finished. Total entries in dict: {dict.Count}");
     }
 
     private static bool TryExtractAndRemove<TVal>(JObject token, string fieldName, out TVal? value)
@@ -146,7 +133,7 @@ public static class Parse
         JArray? array = container.TryCast<JArray>();
         if (array == null) return false;
 
-        modLogger.LogInfo($"      JArray Count = {array.Count}");
+        Loader.modLogger?.LogInfo($"      JArray Count = {array.Count}");
 
         for (int j = 0; j < array.Count; j++)
         {
@@ -156,7 +143,7 @@ public static class Parse
             JToken? customField = obj[fieldName];
             if (customField == null) continue;
 
-            modLogger.LogInfo($"        Found '{fieldName}' of type {customField.Type}");
+            Loader.modLogger?.LogInfo($"        Found '{fieldName}' of type {customField.Type}");
 
             try
             {
@@ -195,7 +182,7 @@ public static class Parse
                         }
 
                         obj.Remove(fieldName);
-                        modLogger.LogInfo($"        ✅ Parsed array for {typeof(TVal)}");
+                        Loader.modLogger?.LogInfo($"        ✅ Parsed array for {typeof(TVal)}");
                         return true;
                     }
                 }
@@ -204,13 +191,13 @@ public static class Parse
                 {
                     value = customField.ToObject<TVal>();
                     obj.Remove(fieldName);
-                    modLogger.LogInfo($"        ✅ Parsed single value for {typeof(TVal)}");
+                    Loader.modLogger?.LogInfo($"        ✅ Parsed single value for {typeof(TVal)}");
                     return true;
                 }
             }
             catch (System.Exception ex)
             {
-                modLogger.LogInfo($"        Error parsing {fieldName} as {typeof(TVal)}: {ex.Message}");
+                Loader.modLogger?.LogInfo($"        Error parsing {fieldName} as {typeof(TVal)}: {ex.Message}");
             }
         }
 
@@ -262,11 +249,11 @@ public static class Parse
     public static void SetConquestMode(bool value)
     {
         _isConquestMode = value;
-        modLogger?.LogInfo($"[Conquest] Global flag set to: {value}");
+        Loader.modLogger?.LogInfo($"[Conquest] Global flag set to: {value}");
     }
 
     public static bool IsConquestMode()
     {
         return _isConquestMode;
     }
-}*/
+}

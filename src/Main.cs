@@ -11,12 +11,11 @@ namespace Polyquest
 {
     public static class Main
     {
-        [HarmonyPostfix]
+        /*[HarmonyPostfix]
         [HarmonyPatch(typeof(GameRules), nameof(GameRules.LoadPreset))]
         private static void GameRules_LoadPreset_Postfix(GameRules __instance, GameMode gameMode)
         {
                 Loader.modLogger?.LogInfo("GameRules.LoadPreset");
-                bool isConquest = Loader.IsConquestMode();
                 
             if (gameMode == EnumCache<GameMode>.GetType("conquest"))
             {   
@@ -30,18 +29,31 @@ namespace Polyquest
                 __instance.WinByExtermination = true;
                 __instance.PlayerDeathCondition = GameRules.DeathCondition.Cities;
             }
-        }
+        }*/
 
         [HarmonyPostfix]
         [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
         private static void GenerateInternal_Postfix(MapGenerator __instance, GameState gameState, MapGeneratorSettings settings)
         {
-            bool isConquest = Loader.IsConquestMode();
+            // 1. Check your dictionary safely using your working logic
+            bool isConquest = Loader.IsConquestMode(gameState);
 
             if (!isConquest) return;
 
-            Loader.modLogger!.LogInfo("[Conquest] Initializing vanilla Manhattan-proximity equal village distribution...");
+            Loader.modLogger?.LogInfo("[Conquest-Map] Conquest signature verified via dictionary key! Distributing villages...");
+            
+            // 2. Run your beautiful Manhattan proximity code
             DistributeProximityVillages(__instance, gameState.Map, gameState);
+
+            // ====================== THE PERMANENT FIX ======================
+            // 3. Stamp a permanent signature into an unused match setting (like turn limit) 
+            // so the game remembers this is a Conquest match even after saving and reloading!
+            gameState.Settings.rules.TurnLimit = 9999;
+
+            // 4. RESET THE DOMINATION DICTIONARY FLAG IMMEDIATELY!
+            // This un-hijacks the normal Domination mode so players can play standard matches next time.
+            Loader.SetConquestMode(gameState.Settings, false);
+            Loader.modLogger?.LogInfo("[Conquest-Map] Map generated. Domination flag safely reset to false.");
         }
 
         private static void DistributeProximityVillages(MapGenerator gen, MapData map, GameState state)
@@ -188,12 +200,48 @@ namespace Polyquest
         }
 
         [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.OnLevelLoaded))] 
+        private static void OnLevelLoaded_Postfix(GameManager __instance)
+        {
+            if (__instance == null || __instance.settings == null || __instance.settings.rules == null) return;
+
+            // Since 9999 remains active in the file permanently, we re-hook our dictionary flag on every single reload
+            if (__instance.settings.rules.TurnLimit == 9999)
+            {
+                Loader.modLogger?.LogInfo("[Conquest-Save] Conquest match save loaded! Re-enabling runtime flag rules...");
+                Loader.SetConquestMode(__instance.settings, true);
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.OnLevelUnloaded))]
+        private static void OnLevelUnloaded_Postfix(GameManager __instance)        
+        {
+            try
+            {
+                if (__instance != null && __instance.settings != null)
+                {
+                    Loader.modLogger?.LogInfo("[Conquest-Exit] Player is exiting the match. Forcing dictionary flag deactivation...");
+                    
+                    // Explicitly flip our dictionary flag off to protect the main menu state
+                    Loader.SetConquestMode(__instance.settings, false);
+                    
+                    Loader.modLogger?.LogInfo("[Conquest-Exit] Flag cleared. Main menu state safely restored to vanilla defaults.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Loader.modLogger?.LogError($"[Conquest-Exit] Error cleaning up match state flags on exit: {ex}");
+            }
+        }
+
+        [HarmonyPostfix]
         [HarmonyPatch(typeof(GameLogicData), nameof(GameLogicData.GetTechPrice))]
         private static void Conquest_TechCost_Postfix(GameLogicData __instance, TechData techData, PlayerState playerState, GameState state, ref int __result)
         {
             if (state == null || techData == null) return;
 
-            bool isConquest = Loader.IsConquestMode();
+        bool isConquest = Loader.IsConquestMode(state);
             
             if (!isConquest) return;
 
@@ -208,7 +256,7 @@ namespace Polyquest
         [HarmonyPatch(typeof(CaptureCityAction), nameof(CaptureCityAction.ExecuteDefault))]   // Change if method name is different
         private static bool Conquest_CaptureCityAction_Prefix(CaptureCityAction __instance, GameState gameState)
         {
-            bool isConquest = Loader.IsConquestMode();
+        bool isConquest = Loader.IsConquestMode(gameState);
             if (!isConquest)
             {
                 return true;
