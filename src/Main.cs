@@ -48,7 +48,7 @@ namespace Polyquest
             // ====================== THE PERMANENT FIX ======================
             // 3. Stamp a permanent signature into an unused match setting (like turn limit) 
             // so the game remembers this is a Conquest match even after saving and reloading!
-            gameState.Settings.rules.TurnLimit = 9999;
+            gameState.Settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
 
             // 4. RESET THE DOMINATION DICTIONARY FLAG IMMEDIATELY!
             // This un-hijacks the normal Domination mode so players can play standard matches next time.
@@ -87,15 +87,9 @@ namespace Polyquest
                     {
                         int tileIndex = map.GetTileIndex(emergencyCoords);
                         TileData targetTile = map.Tiles[tileIndex];
-                        targetTile.improvement = new ImprovementState
-                        {
-                            type = ImprovementData.Type.City,
-                            founded = 0,
-                            level = 1,
-                            borderSize = 1,
-                            production = 1
-                        };
+                        gen.SetTileAsCity(targetTile);
                         neutralVillages.Add(targetTile);
+                        Loader.modLogger!.LogInfo($"[Conquest] Spawned {citiesToSpawn} emergency villages on tile {targetTile.coordinates}.");
                     }
                     else
                     {
@@ -118,6 +112,7 @@ namespace Polyquest
                 {
                     PlayerState player = state.PlayerStates[p];
                     WorldCoordinates capitalCoords = player.startTile;
+                    Loader.modLogger!.LogInfo($"[Conquest] Identified player {player.Id} at {capitalCoords}.");
 
                     TileData closestVillage = null;
                     int closestDistance = int.MaxValue;
@@ -133,6 +128,7 @@ namespace Polyquest
                         {
                             closestDistance = distance;
                             closestVillage = village;
+                            Loader.modLogger!.LogInfo($"[Conquest] Identified closest village with distance {distance} at {village.coordinates}.");
                         }
                     }
 
@@ -140,6 +136,7 @@ namespace Polyquest
                     {
                         assignedCoordinates.Add(closestVillage.coordinates);
                         InitializeConquestCityData(state, closestVillage, player);
+                        Loader.modLogger!.LogInfo($"[Conquest] Finished Conquest City Distribution.");
                     }
                 }
             }
@@ -170,6 +167,9 @@ namespace Polyquest
         {
             try
             {
+
+            Loader.modLogger!.LogInfo($"[Conquest] Initialize Conquest City Data.");
+
                 tile.owner = player.Id;
 
                 TribeData tribeData;
@@ -180,6 +180,7 @@ namespace Polyquest
                     if (tile.improvement != null)
                     {
                         tile.improvement.name = generatedName;
+                        Loader.modLogger!.LogInfo($"[Conquest] Initialize Conquest City Name: {generatedName}.");
                     }
                 }
 
@@ -191,6 +192,7 @@ namespace Polyquest
                     TileData territoryTile = cityArea[j];
                     territoryTile.owner = player.Id;
                     territoryTile.rulingCityCoordinates = tile.coordinates;
+                    Loader.modLogger!.LogInfo($"[Conquest] Initialize Conquest City Labelled: {player.Id} + {territoryTile.rulingCityCoordinates}.");
                 }
             }
             catch (Exception ex)
@@ -206,18 +208,18 @@ namespace Polyquest
             if (__instance == null || __instance.settings == null || __instance.settings.rules == null) return;
 
             // Since 9999 remains active in the file permanently, we re-hook our dictionary flag on every single reload
-            if (__instance.settings.rules.TurnLimit == 9999)
+            /*if (__instance.settings.rules.TurnLimit == 9999)
             {
                 Loader.modLogger?.LogInfo("[Conquest-Save] Conquest match save loaded! Re-enabling runtime flag rules...");
                 Loader.SetConquestMode(__instance.settings, true);
-            }
+            }*/
         }
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(GameManager), nameof(GameManager.OnLevelUnloaded))]
         private static void OnLevelUnloaded_Postfix(GameManager __instance)        
         {
-            try
+            /*try
             {
                 if (__instance != null && __instance.settings != null)
                 {
@@ -232,7 +234,7 @@ namespace Polyquest
             catch (Exception ex)
             {
                 Loader.modLogger?.LogError($"[Conquest-Exit] Error cleaning up match state flags on exit: {ex}");
-            }
+            }*/
         }
 
         [HarmonyPostfix]
@@ -243,7 +245,7 @@ namespace Polyquest
 
             bool isConquest = Loader.IsConquestMode(state);
             
-            if (!isConquest) return;
+            if (state.Settings.RulesGameMode != EnumCache<GameMode>.GetType("conquest")) return;
 
             // Tech becomes more expensive over time in Conquest mode
             int addition = (int)state.CurrentTurn;   // +1 per turn
@@ -257,7 +259,7 @@ namespace Polyquest
         private static bool Conquest_CaptureCityAction_Prefix(CaptureCityAction __instance, GameState gameState)
         {
         bool isConquest = Loader.IsConquestMode(gameState);
-            if (!isConquest)
+            if (gameState.Settings.RulesGameMode != EnumCache<GameMode>.GetType("conquest"))
             {
                 return true;
             } 
