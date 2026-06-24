@@ -35,23 +35,16 @@ namespace Polyquest
         [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
         private static void GenerateInternal_Postfix(MapGenerator __instance, GameState gameState, MapGeneratorSettings settings)
         {
-            // 1. Check your dictionary safely using your working logic
             bool isConquest = Loader.IsConquestMode(gameState);
 
             if (!isConquest) return;
 
             Loader.modLogger?.LogInfo("[Conquest-Map] Conquest signature verified via dictionary key! Distributing villages...");
             
-            // 2. Run your beautiful Manhattan proximity code
             DistributeProximityVillages(__instance, gameState.Map, gameState);
 
-            // ====================== THE PERMANENT FIX ======================
-            // 3. Stamp a permanent signature into an unused match setting (like turn limit) 
-            // so the game remembers this is a Conquest match even after saving and reloading!
             gameState.Settings.RulesGameMode = EnumCache<GameMode>.GetType("conquest");
 
-            // 4. RESET THE DOMINATION DICTIONARY FLAG IMMEDIATELY!
-            // This un-hijacks the normal Domination mode so players can play standard matches next time.
             Loader.SetConquestMode(gameState.Settings, false);
             Loader.modLogger?.LogInfo("[Conquest-Map] Map generated. Conquest flag safely reset to false.");
         }
