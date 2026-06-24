@@ -26,11 +26,11 @@ public static class Parse
     [HarmonyPatch(typeof(GameLogicData), nameof(GameLogicData.AddGameLogicPlaceholders))]
     private static void GameLogicData_Parse(GameLogicData __instance, JObject rootObject)
     {
-        Loader.modLogger?.LogInfo("=== Starting parsing ===");
+        // Loader.modLogger?.LogInfo("=== Starting parsing ===");
         
-        ParsePerEach(rootObject, "gameRules", "conquest", conquestModeFlags);
+        // ParsePerEach(rootObject, "gameRules", "conquest", conquestModeFlags);
 
-        Loader.modLogger?.LogInfo($"Parsed conquest mode entries: {conquestModeFlags.Count}");
+        // Loader.modLogger?.LogInfo($"Parsed conquest mode entries: {conquestModeFlags.Count}");
     }
 
     public static void ParsePerEach<targetType, T>(

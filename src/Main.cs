@@ -136,9 +136,9 @@ namespace Polyquest
                     {
                         assignedCoordinates.Add(closestVillage.coordinates);
                         InitializeConquestCityData(state, closestVillage, player);
-                        Loader.modLogger!.LogInfo($"[Conquest] Finished Conquest City Distribution.");
                     }
                 }
+                Loader.modLogger!.LogInfo($"[Conquest] Finished round {round+1} Conquest City Distribution.");
             }
 
             // 4. Convert leftover unassigned outer frontier villages into neutral Ruins
@@ -194,6 +194,9 @@ namespace Polyquest
                     territoryTile.rulingCityCoordinates = tile.coordinates;
                     Loader.modLogger!.LogInfo($"[Conquest] Initialize Conquest City Labelled: {player.Id} + {territoryTile.rulingCityCoordinates}.");
                 }
+
+                ActionUtils.RuleArea(state, player, tile, false);
+			    ActionUtils.ExploreFromTile(state, player, tile, 2, false);
             }
             catch (Exception ex)
             {
@@ -248,8 +251,8 @@ namespace Polyquest
             if (state.Settings.RulesGameMode != EnumCache<GameMode>.GetType("conquest")) return;
 
             // Tech becomes more expensive over time in Conquest mode
-            int addition = (int)state.CurrentTurn;   // +1 per turn
-            addition = Math.Min(addition, techData.cost * 5);    // Cap at 5x
+            int addition = (int)(4 + state.CurrentTurn);   // +1 per turn
+            addition = Math.Min(addition, 20 + techData.cost * 5);    // Cap at 5x
 
             __result = (int)Math.Ceiling((double)(techData.cost + addition));
         }
@@ -276,9 +279,9 @@ namespace Polyquest
             if (cityTile?.improvement?.type != ImprovementData.Type.City) return;
 
             // Reward
-            int reward = cityTile.improvement.level * 2 + (int)gameState.CurrentTurn;
+            int reward = cityTile.improvement.level * 2;
             attacker.Currency = attacker.Currency + reward;
-            bool leaveRuin = UnityEngine.Random.value < 0.6f;
+            bool leaveRuin = UnityEngine.Random.value < 0.5f;
 
             // Leave ruin sometimes
             if (leaveRuin)
@@ -291,7 +294,10 @@ namespace Polyquest
             }
             else
             {
-                cityTile.improvement = null;
+                cityTile.improvement = new ImprovementState 
+                { 
+                    type = ImprovementData.Type.None
+                };
             }
 
             cityTile.owner = 0;

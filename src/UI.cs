@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 
 namespace Polyquest
 {
-    public static class GameSetup
+    public static class UI
     {
         // internal static bool conquestSelected = false;
 
@@ -26,7 +26,7 @@ namespace Polyquest
             Il2CppSystem.Action onClickDisabledItemCallback)
         {
             Loader.modLogger?.LogInfo($"[Conquest-UI] CreateHorizontalList intercepted. Checking headerKey: '{headerKey}'");
-
+            
             if (headerKey == "gamesettings.mode") 
             {
                 Loader.modLogger?.LogInfo("[Conquest-UI] Target game mode row found! Appending 'Conquest' string label...");
