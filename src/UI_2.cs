@@ -70,39 +70,19 @@ namespace Polyquest
                 return;
             }
 
-            var targetList = instance.gameModeData.labels;   // 使用 labels
+            var labels = instance.gameModeData.labels;
 
-            if (targetList == null)
-            {
-                Loader.modLogger?.LogWarning("[Conquest-UI] labels is null");
-                return;
-            }
+                // 檢查是否已經存在
+                for (int i = 0; i < labels.Count; i++)
+                {
+                    if (labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
+                        return;
+                }
 
-            // 轉成普通 List 方便操作
-            List<string> current = new List<string>();
-            for (int i = 0; i < targetList.Count; i++)
-            {
-                current.Add(targetList[i]);
-            }
+                // 安全新增
+                labels.Add("Conquest");
 
-            if (current.Any(x => x.Equals("Conquest", StringComparison.OrdinalIgnoreCase)))
-            {
-                Loader.modLogger?.LogInfo("[Conquest-UI] Conquest already in list");
-                return;
-            }
-
-            current.Add("Conquest");
-
-            // 建立新的 Il2Cpp List 並寫回去
-            var newList = new Il2CppSystem.Collections.Generic.List<string>();
-            foreach (string s in current)
-            {
-                newList.Add(s);
-            }
-
-            instance.gameModeData.labels = newList;
-
-            Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Successfully injected 'Conquest'! Total modes: {current.Count}");
+                Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Conquest added safely. Total: {labels.Count}");
         }
 
         [HarmonyPostfix]
