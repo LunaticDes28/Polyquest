@@ -13,76 +13,30 @@ namespace Polyquest
     {
         // internal static bool conquestSelected = false;
 
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameModeScreen_UI2), nameof(GameModeScreen_UI2.OnCustom))]
-        private static void GameModeScreen_UI2_OnCustom_Postfix(GameModeScreen_UI2 __instance)
+        private static void InjectConquest(GameSetupScreen_UI2 instance = null)
         {
-            Loader.modLogger?.LogInfo("[Conquest-UI] GameModeScreen_UI2.OnCustom triggered → Preparing Conquest injection");
-
-            // Delay a bit because GameSetupScreen_UI2 may not be fully initialized yet
-            // We can use a coroutine or just run it on next frame, but for simplicity we use LateInvoke
-            RunDelayed(() => InjectConquestIntoSetupScreen());
-        }
-
-        private static void RunDelayed(Action action)
-        {
-            Loader.modLogger?.LogInfo("[Conquest-UI] RunDelayed timed...");
-
-            // Simple way: use Unity's coroutine or just call it after a short delay
-            // For now, we'll call it directly first (we can improve later if needed)
-            action?.Invoke();
-        }
-
-        private static void InjectConquestIntoSetupScreen()
-        {
-            Loader.modLogger?.LogInfo("[Conquest-UI] Looking for GameSetupScreen_UI2 via UIManager...");
-
-            if (UIManager.Instance == null)
+            if (instance == null)
             {
-                Loader.modLogger?.LogWarning("[Conquest-UI] UIManager.Instance is null");
-                return;
+                if (UIManager.Instance == null) return;
+                IScreen screen = UIManager.Instance.GetScreen(UIConstants.Screens.GameSetup);
+                if (screen == null) return;
+                instance = screen.Cast<GameSetupScreen_UI2>();
+                if (instance == null) return;
             }
 
-            IScreen screen = UIManager.Instance.GetScreen(UIConstants.Screens.GameSetup);
-            if (screen == null)
-            {
-                Loader.modLogger?.LogWarning("[Conquest-UI] GetScreen(GameSetup) returned null");
-                return;
-            }
-
-            GameSetupScreen_UI2 setupScreen = screen.Cast<GameSetupScreen_UI2>();
-            if (setupScreen == null)
-            {
-                Loader.modLogger?.LogWarning("[Conquest-UI] Cast to GameSetupScreen_UI2 failed");
-                return;
-            }
-
-            Loader.modLogger?.LogInfo("[Conquest-UI] Successfully got GameSetupScreen_UI2, injecting Conquest...");
-            InjectConquestToModeList(setupScreen);
-        }
-
-        // Reuse the injection helper
-        private static void InjectConquestToModeList(GameSetupScreen_UI2 instance)
-        {
-            if (instance?.gameModeData == null)
-            {
-                Loader.modLogger?.LogWarning("[Conquest-UI] gameModeData is null");
-                return;
-            }
+            if (instance.gameModeData?.labels == null) return;
 
             var labels = instance.gameModeData.labels;
 
-                // 檢查是否已經存在
-                for (int i = 0; i < labels.Count; i++)
-                {
-                    if (labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
-                        return;
-                }
+            // Check if Conquest already exists
+            for (int i = 0; i < labels.Count; i++)
+            {
+                if (labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
 
-                // 安全新增
-                labels.Add("Conquest");
-
-                Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Conquest added safely. Total: {labels.Count}");
+            instance.gameModeData.labels.Add("Conquest");
+            Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Injected Conquest. Total labels: {labels.Count}");
         }
 
         [HarmonyPostfix]
@@ -90,6 +44,7 @@ namespace Polyquest
         public static void OnGameModeChanged_Postfix(GameSetupScreen_UI2 __instance, int index)
         {
             Loader.modLogger?.LogInfo($"[Conquest-UI] OnGameModeChanged Postfix event captured. Raw index: {index}");
+            InjectConquest(__instance);
             EvaluateGameSetupScreenState(__instance, index);
         }
 
