@@ -1,106 +1,73 @@
 using HarmonyLib;
 using PolytopiaBackendBase.Game;
 using UnityEngine;
-using UnityEngine.UI;
 using System;
-using System.Collections; // 必須引用以支援 IEnumerator
-using BepInEx.Unity.IL2CPP.Utils; // 確保有引用 BepInEx 提供的協程擴充 (如果編譯錯誤可移除此行)
 
 namespace Polyquest
 {
     public static class UI_2
     {
+        // 1. 放棄 Init 與協程，直接改 Hook 畫面顯示的 OnShow 事件
+        // 當 OnShow 執行時，Polytopia 內部的 gameModeData 已經 100% 被指派且準備完成
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.Init))]
-        public static void Init_Postfix(GameSetupScreen_UI2 __instance)
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnShow))]
+        public static void OnShow_Postfix(GameSetupScreen_UI2 __instance)
         {
-            Loader.modLogger?.LogInfo("[Conquest-UI] GameSetupScreen initialized. Preparing custom data insertion...");
-            
-            // 關鍵修改：不直接呼叫，而是轉型成 MonoBehaviour 來啟動協程延遲處理
-            var monoBehaviour = __instance.Cast<MonoBehaviour>();
-            if (monoBehaviour != null)
-            {
-                monoBehaviour.StartCoroutine(DelayInject(__instance));
-                Loader.modLogger?.LogInfo("[Conquest-UI] Delayed injection coroutine started.");
-            }
-            else
-            {
-                Loader.modLogger?.LogError("[Conquest-UI] CRITICAL: Cannot cast instance to MonoBehaviour!");
-            }
-        }
-
-        private static IEnumerator DelayInject(GameSetupScreen_UI2 instance)
-        {
-            // 延遲等待 1 幀（或是寫 yield return new WaitForSeconds(0.1f);）
-            // 確保 Polytopia 自己的 Init 跑完，且 gameModeData 的原生記憶體指標被賦值
-            yield return null; 
-
-            Loader.modLogger?.LogInfo("[Conquest-UI] Coroutine awake. Processing InjectConquest securely...");
-            InjectConquest(instance);
+            Loader.modLogger?.LogInfo("[Conquest-UI] GameSetupScreen.OnShow captured. Injecting options before rendering...");
+            InjectConquest(__instance);
         }
 
         private static void InjectConquest(GameSetupScreen_UI2 instance)
         {
-            if (instance == null)
-            {
-                Loader.modLogger?.LogWarning("[Conquest-UI] Injection skipped: instance is NULL.");
-                return;
-            }
+            // 防呆安全檢查
+            if (instance == null) return;
 
-            // 分步安全檢查，避免一碰 null 就直接 Silent Crash
             if (instance.gameModeData == null)
             {
-                Loader.modLogger?.LogWarning("[Conquest-UI] Injection aborted: instance.gameModeData is NULL at this frame.");
+                Loader.modLogger?.LogWarning("[Conquest-UI] Injection skipped: instance.gameModeData is still null.");
                 return;
             }
 
             var labels = instance.gameModeData.labels;
             if (labels == null)
             {
-                Loader.modLogger?.LogWarning("[Conquest-UI] Injection aborted: gameModeData.labels list is NULL.");
+                Loader.modLogger?.LogWarning("[Conquest-UI] Injection skipped: gameModeData.labels is null.");
                 return;
             }
 
-            // 嚴格比對防重複
+            // 嚴格比對防重複插入
             for (int i = 0; i < labels.Count; i++)
             {
                 if (labels[i] != null && labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                 {
-                    Loader.modLogger?.LogInfo("[Conquest-UI] Conquest option already detected. Skipping injection.");
+                    Loader.modLogger?.LogInfo("[Conquest-UI] Conquest option already exists. Skipping injection.");
                     return;
                 }
             }
 
-            // 成功寫入 IL2CPP List
+            // 成功寫入 Polytopia 內部的 IL2CPP 列表
             instance.gameModeData.labels.Add("Conquest");
-            Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Successfully appended Conquest option to GameModeData. Total: {labels.Count}");
+            Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Successfully injected Conquest. Total options: {labels.Count}");
 
-            ForceRefreshUI(instance);  
+            // 2. 呼叫最純粹的原生 Canvas 刷新，完全不進行任何組件轉型
+            ForceRefreshUI();  
         }
 
-        private static void ForceRefreshUI(GameSetupScreen_UI2 instance)
+        private static void ForceRefreshUI()
         {
             try
             {
+                // 這是不需要任何實例物件、100% 靜態安全呼叫的 Unity API
                 Canvas.ForceUpdateCanvases();
-                
-                var component = instance.Cast<UnityEngine.Component>();
-                if (component != null)
-                {
-                    var rectTransform = component.GetComponent<UnityEngine.RectTransform>();
-                    if (rectTransform != null)
-                    {
-                        UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
-                    }
-                }
-                Loader.modLogger?.LogInfo("[Conquest-UI] Canvas & Local UI Layout parameters successfully flushed.");
+                Loader.modLogger?.LogInfo("[Conquest-UI] Global Canvas.ForceUpdateCanvases() executed successfully.");
             }
             catch (Exception ex)
             {
-                Loader.modLogger?.LogWarning($"[Conquest-UI] Visual structural refresh encountered an exception: {ex.Message}");
+                Loader.modLogger?.LogWarning($"[Conquest-UI] Canvas refresh exception: {ex.Message}");
             }
         }
 
+        // 3. 保持原本的狀態監聽與 Flag 設定
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnGameModeChanged))]
         public static void OnGameModeChanged_Postfix(GameSetupScreen_UI2 __instance, int index)
@@ -118,6 +85,8 @@ namespace Polyquest
                 if (activeItem != null)
                 {
                     string selectedText = activeItem.ToString();
+                    Loader.modLogger?.LogInfo($"[Conquest-UI] Swapped to mode: '{selectedText}' (Index: {index})");
+
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
                         Loader.modLogger?.LogInfo("[Conquest-UI] Match Found → Enabling custom global backend settings");
