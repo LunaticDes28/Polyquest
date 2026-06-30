@@ -315,21 +315,55 @@ namespace Polyquest
         {
             if (cityTile?.improvement?.type != ImprovementData.Type.City) return;
 
+            if (cityTile.owner != 0)
+            {
+                PlayerState originalOwner;
+                if (gameState.TryGetPlayer(cityTile.owner, out originalOwner) && originalOwner != null)
+                {
+                    if (originalOwner.cities > 0)
+                    {
+                        originalOwner.cities--;
+                        Loader.modLogger?.LogInfo($"[Conquest] Player {originalOwner.Id} lost a city. Total remaining: {originalOwner.cities}");
+                    }
+                }
+            }
+
             int reward = cityTile.improvement.level * 2 + (int)gameState.CurrentTurn;
             if (attacker != null)
             {
                 attacker.Currency += reward;
-                Log.Info($"[Conquest] City destroyed by player {attacker.Id} (+{reward} stars)");
+                Loader.modLogger?.LogInfo($"[Conquest] City destroyed by player {attacker.Id} (+{reward} stars)");
             }
 
-            bool leaveRuin = UnityEngine.Random.value < 0.5f;
+            Il2CppSystem.Collections.Generic.List<TileData> cityArea = ActionUtils.GetCityAreaSorted(gameState, cityTile);
+            if (cityArea != null)
+            {
+                for (int j = 0; j < cityArea.Count; j++)
+                {
+                    TileData territoryTile = cityArea[j];
+                    if (territoryTile != null)
+                    {
+                        territoryTile.owner = 0;
+                        
+                        territoryTile.rulingCityCoordinates = WorldCoordinates.NULL_COORDINATES; 
+                    }
+                }
+            }
+
+            bool leaveRuin = UnityEngine.Random.value <= 1f;
             if (leaveRuin)
+            {
                 cityTile.improvement = new ImprovementState { type = ImprovementData.Type.Ruin, level = 1 };
+            }
             else
+            {
                 cityTile.improvement = null;
+            }
 
             cityTile.owner = 0;
             cityTile.capitalOf = 0;
+            
+            Loader.modLogger?.LogInfo($"[Conquest] City at {cityTile.coordinates} has been successfully razed.");
         }
 
         // =========================================================================
