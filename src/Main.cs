@@ -64,7 +64,7 @@ namespace Polyquest
 
                 int remainder = neutralVillages.Count % playerCount;
 
-                // Emergency villages
+                // If creating extra villages is favourable for fairness, do this
                 if (remainder > 0 && remainder >= (playerCount * 0.6f))
                 {
                     int citiesToSpawn = playerCount - remainder;
@@ -87,7 +87,8 @@ namespace Polyquest
                     }
                 }
 
-                // Calculate which villages should be kept vs turned into ruins
+                // If creating extra villages is NOT favourable for fairness, convert excess villages into ruins
+                // Converted villages are chosen by their proximity to players
                 int maxCitiesPerPlayer = neutralVillages.Count / playerCount;
                 HashSet<WorldCoordinates> assignedCoordinates = new HashSet<WorldCoordinates>();
 
@@ -120,7 +121,6 @@ namespace Polyquest
                     }
                 }
 
-                // Convert leftovers to ruins
                 int ruinsCount = 0;
                 foreach (var village in neutralVillages)
                 {
@@ -276,8 +276,8 @@ namespace Polyquest
                 int registeredConquestId = PolyMod.Registry.gameModesAutoidx - 1;
                 if ((int)state.Settings.RulesGameMode != registeredConquestId) return;
 
-                int addition = (int)(4 + state.CurrentTurn);
-                addition = Math.Min(addition, 20 + techData.cost * 5);
+                int addition = (int)(playerState.cities + state.CurrentTurn);
+                addition = Math.Min(addition, 5 + techData.cost * playerState.cities);
                 __result = (int)Math.Ceiling((double)(techData.cost + addition));
             }
             catch (Exception ex)
@@ -344,7 +344,7 @@ namespace Polyquest
                     if (territoryTile != null)
                     {
                         territoryTile.owner = 0;
-                        
+                        territoryTile.improvement = new ImprovementState { type = ImprovementData.Type.None};
                         territoryTile.rulingCityCoordinates = WorldCoordinates.NULL_COORDINATES; 
                     }
                 }
@@ -357,7 +357,7 @@ namespace Polyquest
             }
             else
             {
-                cityTile.improvement = null;
+                cityTile.improvement = new ImprovementState { type = ImprovementData.Type.None};
             }
 
             cityTile.owner = 0;
