@@ -331,5 +331,44 @@ namespace Polyquest
             cityTile.owner = 0;
             cityTile.capitalOf = 0;
         }
+
+        // =========================================================================
+        // F. AI interpretation
+        // =========================================================================
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(AI), nameof(AI.GetGameProgress))]
+        private static bool GetGameProgress_Prefix(ref float __result, GameState gameState, PlayerState winningPlayer)
+        {
+            if (gameState?.Settings == null) return true;
+
+            try
+            {
+                int registeredConquestId = PolyMod.Registry.gameModesAutoidx - 1;
+
+                if ((int)gameState.Settings.RulesGameMode == registeredConquestId)
+                {
+                    if (winningPlayer == null)
+                    {
+                        __result = 0f;
+                        return false;
+                    }
+
+                    float totalCities = Math.Max(0.1f, (float)MapDataExtensions.CountCities(gameState));
+                    float cityProgress = (float)winningPlayer.cities / totalCities;
+                    
+                    __result = Math.Min(1f, Math.Max(0f, cityProgress));
+                    
+                    return false; 
+                }
+            }
+            catch (Exception ex)
+            {
+                Loader.modLogger?.LogError($"[Conquest-AI] Error in GetGameProgress detour: {ex.Message}");
+                __result = 0f; 
+                return false; 
+            }
+
+            return true; 
+        }
     }
 }
