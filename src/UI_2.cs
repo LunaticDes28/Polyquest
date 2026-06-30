@@ -7,91 +7,174 @@ namespace Polyquest
 {
     public static class UI_2
     {
-        // 儲存當前畫面的靜態引用，完全避免在 OnShow 當下進行高風險的記憶體存取
-        private static GameSetupScreen_UI2 _cachedInstance;
+        // ==========================================
+        // 1. INIT HOOKS (前置與後置)
+        // ==========================================
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.Init))]
+        public static void Init_Prefix(GameSetupScreen_UI2 __instance)
+        {
+            Loader.modLogger?.LogInfo("[Conquest-Diag] >>> [Init Prefix] Triggered.");
+            InspectInternalState(__instance, "Init Prefix");
+            
+            // 嘗試在此進行前置注入實驗
+            TryInjectData(__instance, "Init Prefix");
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.Init))]
+        public static void Init_Postfix(GameSetupScreen_UI2 __instance)
+        {
+            Loader.modLogger?.LogInfo("[Conquest-Diag] <<< [Init Postfix] Triggered.");
+            InspectInternalState(__instance, "Init Postfix");
+        }
+
+        // ==========================================
+        // 2. ONSHOW HOOKS (前置與後置)
+        // ==========================================
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnShow))]
+        public static void OnShow_Prefix(GameSetupScreen_UI2 __instance)
+        {
+            Loader.modLogger?.LogInfo("[Conquest-Diag] >>> [OnShow Prefix] Triggered.");
+            InspectInternalState(__instance, "OnShow Prefix");
+
+            // 如果 Init 沒成功，嘗試在此進行前置注入實驗
+            TryInjectData(__instance, "OnShow Prefix");
+        }
 
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnShow))]
         public static void OnShow_Postfix(GameSetupScreen_UI2 __instance)
         {
-            Loader.modLogger?.LogInfo("[Conquest-UI] GameSetupScreen.OnShow captured. Caching screen instance...");
-            _cachedInstance = __instance;
+            Loader.modLogger?.LogInfo("[Conquest-Diag] <<< [OnShow Postfix] Triggered.");
+            InspectInternalState(__instance, "OnShow Postfix");
         }
 
-        // 💡 關鍵救星：改 Hook Update (每幀執行的邏輯更新)
-        // 這樣可以不斷偵測，直到 Polytopia 自己把 gameModeData 的資料完全初始化完成的那一幀，才精準切入！
-        [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameSetupScreen_UI2), "Update")] // 如果混淆名稱不同，請確保名稱正確
-        public static void Update_Postfix(GameSetupScreen_UI2 __instance)
+        // ==========================================
+        // 3. RUNLAYOUT HOOKS (前置與後置)
+        // ==========================================
+        // 註：因為 RunLayout 在 C# 代理類可能為 protected，若 nameof 報錯，請換成字串 "RunLayout"
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), "RunLayout")]
+        public static void RunLayout_Prefix(GameSetupScreen_UI2 __instance)
         {
-            if (_cachedInstance == null || _cachedInstance.Pointer != __instance.Pointer) return;
-
-            // 執行最安全的防禦性注入
-            TrySecureInjection(__instance);
-        }
-
-        private static void TrySecureInjection(GameSetupScreen_UI2 instance)
-        {
-            try
-            {
-                // 1. 如果底層記憶體指標還是空的，直接安全退出，等待下一幀
-                if (instance.gameModeData == null || instance.gameModeData.Pointer == IntPtr.Zero)
-                {
-                    return; 
-                }
-
-                var labels = instance.gameModeData.labels;
-                if (labels == null || labels.Pointer == IntPtr.Zero)
-                {
-                    return;
-                }
-
-                // 2. 檢查是否已經注入過
-                for (int i = 0; i < labels.Count; i++)
-                {
-                    if (labels[i] != null && labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // 已經注入成功，清除快取，停止後續每幀的 Update 偵測
-                        _cachedInstance = null;
-                        Loader.modLogger?.LogInfo("[Conquest-UI] Injection verified active. Unregistering Update hook loop.");
-                        return;
-                    }
-                }
-
-                // 3. 執行資料寫入
-                labels.Add("Conquest");
-                Loader.modLogger?.LogInfo($"[Conquest-UI] ✅ Successfully injected Conquest via Safe Update Loop! Total: {labels.Count}");
-
-                // 4. 用全域 Canvas 強制重新整理
-                Canvas.ForceUpdateCanvases();
-                
-                // 成功後清除引用
-                _cachedInstance = null;
-            }
-            catch (Exception ex)
-            {
-                // 如果仍有非預期的例外，至少這次能抓到 Log 
-                Loader.modLogger?.LogError($"[Conquest-UI] Fatal error during update iteration: {ex.Message}\n{ex.StackTrace}");
-                _cachedInstance = null; // 發生異常也強制中止防止洗版
-            }
+            Loader.modLogger?.LogInfo("[Conquest-Diag] >>> [RunLayout Prefix] Triggered.");
+            InspectInternalState(__instance, "RunLayout Prefix");
         }
 
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnHide))]
-        public static void OnHide_Postfix()
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), "RunLayout")]
+        public static void RunLayout_Postfix(GameSetupScreen_UI2 __instance)
         {
-            // 畫面關閉時，確保快取被清空
-            _cachedInstance = null;
+            Loader.modLogger?.LogInfo("[Conquest-Diag] <<< [RunLayout Postfix] Triggered.");
         }
 
-        // 保持原本的狀態監聽與 Flag 設定
+        // ==========================================
+        // 4. ONGAMEMODECHANGED HOOK (狀態監聽)
+        // ==========================================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnGameModeChanged))]
         public static void OnGameModeChanged_Postfix(GameSetupScreen_UI2 __instance, int index)
         {
+            Loader.modLogger?.LogInfo($"[Conquest-Diag] ⚡ [OnGameModeChanged] Captured! Index Arg: {index}");
+            InspectInternalState(__instance, "OnGameModeChanged");
             EvaluateGameSetupScreenState(__instance, index);
         }
 
+        // ==========================================
+        // 核心診斷工具：每幀與每事件狀態透視
+        // ==========================================
+        private static void InspectInternalState(GameSetupScreen_UI2 instance, string stageName)
+        {
+            if (instance == null)
+            {
+                Loader.modLogger?.LogWarning($"[Conquest-Diag] [{stageName}] Target instance is NULL.");
+                return;
+            }
+
+            try
+            {
+                // 1. 檢查原生 C++ 記憶體指標是否存在
+                Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] Instance IL2CPP Pointer: 0x{instance.Pointer.ToInt64():X}");
+
+                // 2. 檢查 view 表現層物件是否存在
+                // (利用反射或欄位讀取看它有沒有分配指針)
+                if (instance.view == null || instance.view.Pointer == IntPtr.Zero)
+                {
+                    Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] -> [FIELD] view is CURRENTLY NULL/EMPTY.");
+                }
+                else
+                {
+                    Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] -> [FIELD] view IS INSTANTIATED (0x{instance.view.Pointer.ToInt64():X})");
+                }
+
+                // 3. 檢查 gameModeData 數據層狀態
+                if (instance.gameModeData == null || instance.gameModeData.Pointer == IntPtr.Zero)
+                {
+                    Loader.modLogger?.LogWarning($"[Conquest-Diag] [{stageName}] -> [FIELD] gameModeData is CURRENTLY NULL/EMPTY.");
+                    return;
+                }
+
+                Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] -> [FIELD] gameModeData Pointer: 0x{instance.gameModeData.Pointer.ToInt64():X}");
+
+                // 4. 檢查 labels 陣列內容與數量
+                var labels = instance.gameModeData.labels;
+                if (labels == null || labels.Pointer == IntPtr.Zero)
+                {
+                    Loader.modLogger?.LogWarning($"[Conquest-Diag] [{stageName}] -> [DATA] gameModeData.labels list is NULL.");
+                    return;
+                }
+
+                Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] -> [DATA] labels.Count = {labels.Count}");
+                
+                // 列印出當前菜單裡的所有內容
+                for (int i = 0; i < labels.Count; i++)
+                {
+                    if (labels[i] != null)
+                    {
+                        Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}]     └─ Slot [{i}]: '{labels[i]}'");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Loader.modLogger?.LogError($"[Conquest-Diag] [{stageName}] Diagnostics exception encountered: {ex.Message}");
+            }
+        }
+
+        // ==========================================
+        // 核心注入工具：安全嘗試寫入
+        // ==========================================
+        private static void TryInjectData(GameSetupScreen_UI2 instance, string stageName)
+        {
+            try
+            {
+                if (instance == null || instance.gameModeData == null || instance.gameModeData.Pointer == IntPtr.Zero) return;
+                var labels = instance.gameModeData.labels;
+                if (labels == null || labels.Pointer == IntPtr.Zero) return;
+
+                for (int i = 0; i < labels.Count; i++)
+                {
+                    if (labels[i] != null && labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] Injection Check: 'Conquest' already listed. Skipping.");
+                        return;
+                    }
+                }
+
+                labels.Add("Conquest");
+                Loader.modLogger?.LogInfo($"[Conquest-Diag] [{stageName}] 🚀 DATA INJECTED SUCCESSFULLY. New Count: {labels.Count}");
+            }
+            catch (Exception ex)
+            {
+                Loader.modLogger?.LogError($"[Conquest-Diag] [{stageName}] Injection trial crashed: {ex.Message}");
+            }
+        }
+
+        // ==========================================
+        // 後台邏輯 Flag 處理
+        // ==========================================
         private static void EvaluateGameSetupScreenState(GameSetupScreen_UI2 instance, int index)
         {
             if (instance.gameModeData == null || instance.gameModeData.labels == null) return;
@@ -105,16 +188,25 @@ namespace Polyquest
                     if (selectedText.Equals("Conquest", StringComparison.OrdinalIgnoreCase))
                     {
                         Loader.SetConquestMode(GameManager.PreliminaryGameSettings, true);
+                        Loader.modLogger?.LogInfo("[Conquest-Diag] Global Flag Sync -> CONQUEST ENABLED");
                     }
                     else
                     {
                         if (Loader.IsConquestMode(GameManager.PreliminaryGameSettings))
                         {
                             Loader.SetConquestMode(GameManager.PreliminaryGameSettings, false);
+                            Loader.modLogger?.LogInfo("[Conquest-Diag] Global Flag Sync -> CONQUEST DISABLED");
                         }
                     }
                 }
             }
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameSetupScreen_UI2), nameof(GameSetupScreen_UI2.OnHide))]
+        public static void OnHide_Postfix(GameSetupScreen_UI2 __instance)
+        {
+            Loader.modLogger?.LogInfo("[Conquest-Diag] [OnHide Postfix] Screen closed.");
         }
     }
 }
