@@ -18,13 +18,12 @@ namespace Polyquest
 
             try
             {
-                // 當選單正在載入最後一個預設模式 "Infinity" 時進行攔截
+                // Intercept at the timing the last vanilla gamemode (Infinity) is being registered
                 if (label != null && label.Equals("Infinity", StringComparison.OrdinalIgnoreCase))
                 {
                     var labels = __instance.labels;
                     if (labels == null || labels.Pointer == IntPtr.Zero) return;
 
-                    // 嚴格比對，防範重複注入
                     for (int i = 0; i < labels.Count; i++)
                     {
                         if (labels[i] != null && labels[i].Equals("Conquest", StringComparison.OrdinalIgnoreCase))
