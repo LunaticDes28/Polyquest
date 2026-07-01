@@ -13,20 +13,19 @@ namespace Polyquest
         // A. Map Generation Hook
         // =========================================================================
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
-        private static void GenerateInternal_Postfix(MapGenerator __instance, GameState gameState, MapGeneratorSettings settings)
+        [HarmonyPatch(typeof(GameStateUtils), nameof(GameStateUtils.GenerateMap))]
+        private static void GenerateMap_Postfix(GameState gameState)
         {
             if (gameState?.Settings == null) return;
 
             try
             {
+                // If player generate new game without mode re-selection, this function will be skipped
+                // It is because bool flag is disabled after map generation, and only applied when mode is re-selected 
                 bool isConquest = UI_2.IsConquestSelected;
                 if (!isConquest) return;
 
-                Loader.modLogger?.LogInfo("[Conquest-Map] Conquest Mode detected! Aligning landscape structures...");
-
-                // Emergency spawn + ruin conversion
-                ConquestVillageGeneration(__instance, gameState);
+                Loader.modLogger?.LogInfo("[Conquest-Map] Conquest Mode selected!");
 
                 // Lock game mode
                 int registeredConquestId = PolyMod.Registry.gameModesAutoidx - 1;
@@ -34,17 +33,36 @@ namespace Polyquest
 
                 UI_2.IsConquestSelected = false;
 
-                Loader.modLogger?.LogInfo($"[Conquest-Map] Map features processed. RulesGameMode stamped as ID: {registeredConquestId}");
+                Loader.modLogger?.LogInfo($"[Conquest-Map] RulesGameMode stamped as ID: {registeredConquestId}");
             }
             catch (Exception ex)
             {
-                Loader.modLogger?.LogError($"[Conquest-Map] MapGenerator detour error: {ex.Message}");
+                Loader.modLogger?.LogError($"[Conquest-Map] GameStateUtils error: {ex.Message}");
             }
         }
 
         // =========================================================================
         // B. Emergency Spawn + Ruin Conversion (in GenerateInternal)
         // =========================================================================
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
+        private static void GenerateInternal_Postfix(MapGenerator __instance, GameState gameState)
+        {
+            try
+            {
+                int registeredConquestId = PolyMod.Registry.gameModesAutoidx - 1;
+                if ((int)gameState.Settings.RulesGameMode != registeredConquestId) return;
+
+                Loader.modLogger?.LogInfo($"[Conquest-Map] ConquestVillageGeneration...");
+                ConquestVillageGeneration(__instance, gameState);
+
+            }
+            catch (Exception ex)
+            {
+                Loader.modLogger?.LogError($"[Conquest-Map] MapGenerator error: {ex.Message}");
+            }
+        }        
+        
         private static void ConquestVillageGeneration(MapGenerator gen, GameState gameState)
         {
             try
@@ -61,17 +79,21 @@ namespace Polyquest
 
                 int playerCount = gameState.PlayerCount;
                 if (playerCount <= 0) return;
+                Loader.modLogger!.LogInfo($"[Conquest-Map] {neutralVillages.Count} villages after vanilla generation for {playerCount} players.");
 
                 int remainder = neutralVillages.Count % playerCount;
+                int citiesToSpawn = playerCount - remainder;
+                Loader.modLogger!.LogInfo($"[Conquest-Map] {citiesToSpawn} more villages needed to even out distribution for all players.");
 
-                // Emergency spawn
-                if (remainder > 0 && remainder >= (playerCount * 0.6f))
+                // Tries to add villages if it is close to distribute 1 more villages to each player
+                if (remainder > 0 && remainder >= (playerCount * 0.5f))
                 {
-                    int citiesToSpawn = playerCount - remainder;
-                    Loader.modLogger!.LogInfo($"[Conquest-Map] Totally {neutralVillages.Count} villages & {playerCount} players. Spawning {citiesToSpawn} emergency villages...");
-
+                    Loader.modLogger!.LogInfo($"[Conquest-Map] Trying to add villages!");
+   
                     for (int s = 0; s < citiesToSpawn; s++)
                     {
+                        Loader.modLogger!.LogInfo($"[Conquest-Map] Attempting to spawn new village...");
+
                         WorldCoordinates emergencyCoords = gen.GetEmergencyCityPosition(gameState, gameState.Map);
                         if (emergencyCoords != WorldCoordinates.NULL_COORDINATES)
                         {
@@ -79,16 +101,19 @@ namespace Polyquest
                             TileData targetTile = gameState.Map.Tiles[tileIndex];
                             gen.SetTileAsCity(targetTile);
                             neutralVillages.Add(targetTile);
-                            Loader.modLogger!.LogInfo($"[Conquest-Map] Emergency village placed at {emergencyCoords}.");
+                            Loader.modLogger!.LogInfo($"[Conquest-Map] {s+1}st emergency village placed at {emergencyCoords}.");
                         }
                         else
                         {
+                            Loader.modLogger!.LogInfo($"[Conquest-Map] Failure to spawn new village!");
                             break;
                         }
                     }
+                    
+                    Loader.modLogger!.LogInfo($"[Conquest-Map] {neutralVillages.Count} villages after custom generation for {playerCount} players.");
                 }
 
-                // Assign villages based on proximity
+                // Decide which village to scrap based on proximity (if necessary)
                 int maxCitiesPerPlayer = neutralVillages.Count / playerCount;
                 HashSet<WorldCoordinates> assignedCoordinates = new HashSet<WorldCoordinates>();
 
@@ -103,20 +128,22 @@ namespace Polyquest
 
                 // Convert excess to ruins
                 int ruinsCount = 0;
-                foreach (var village in neutralVillages)
+                for (int i = neutralVillages.Count - 1; i >= 0; i--)
                 {
+                    var village = neutralVillages[i];
                     if (!assignedCoordinates.Contains(village.coordinates))
                     {
                         village.improvement = new ImprovementState { type = ImprovementData.Type.Ruin, level = 1 };
+                        neutralVillages.RemoveAt(i);
                         ruinsCount++;
                     }
                 }
 
-                Loader.modLogger!.LogInfo($"[Conquest-Map] Village calculation complete. Each player expects {maxCitiesPerPlayer} cities. Converted {ruinsCount} villages to ruins.");
+                Loader.modLogger!.LogInfo($"[Conquest-Map] ConquestVillageGeneration complete. Converted {ruinsCount} villages to ruins. {neutralVillages.Count} villages remain.");
             }
             catch (Exception ex)
             {
-                Loader.modLogger?.LogError($"[Conquest-Map] ProcessMapConquestLandmarks failed: {ex.Message}");
+                Loader.modLogger?.LogError($"[Conquest-Map] ConquestVillageGeneration failed: {ex.Message}");
             }
         }
 
@@ -124,7 +151,7 @@ namespace Polyquest
         // C. Full City Initialization in StartMatchAction
         // =========================================================================
         [HarmonyPostfix]
-        [HarmonyPatch(typeof(StartMatchAction), "ExecuteDefault")]
+        [HarmonyPatch(typeof(StartMatchAction), nameof(StartMatchAction.ExecuteDefault))]
         private static void StartMatchAction_ExecuteDefault_Postfix(StartMatchAction __instance, GameState gameState)
         {
             if (gameState?.Settings == null) return;
@@ -133,7 +160,7 @@ namespace Polyquest
                 int registeredConquestId = PolyMod.Registry.gameModesAutoidx - 1;
                 if ((int)gameState.Settings.RulesGameMode != registeredConquestId) return;
 
-                Loader.modLogger?.LogInfo("[Conquest-Match] Executing live proximity grid calculations...");
+                Loader.modLogger?.LogInfo("[Conquest-Match] Executing village initialization in StartMatchAction...");
                 ConquestVillageDistribution(gameState);
             }
             catch (Exception ex)
@@ -160,7 +187,7 @@ namespace Polyquest
             int maxCitiesPerPlayer = neutralVillages.Count / playerCount;
             HashSet<WorldCoordinates> assignedCoordinates = new HashSet<WorldCoordinates>();
 
-            Loader.modLogger?.LogInfo($"[Conquest-Match] Dynamic pool: {neutralVillages.Count} villages. Allocating {maxCitiesPerPlayer} per player...");
+            Loader.modLogger?.LogInfo($"[Conquest-Match] {neutralVillages.Count} villages to be initialized. Allocating {maxCitiesPerPlayer} per player...");
 
             for (int round = 0; round < maxCitiesPerPlayer; round++)
             {
@@ -179,12 +206,8 @@ namespace Polyquest
             Loader.modLogger?.LogInfo($"[Conquest-Match] All cities initialized successfully!");
         }
 
-        // =========================================================================
-        // Helper: Find and assign closest village to a player
-        // =========================================================================
-        private static TileData AssignClosestVillage(List<TileData> neutralVillages, 
-                                                HashSet<WorldCoordinates> assignedCoordinates, 
-                                                PlayerState player)
+        private static TileData AssignClosestVillage(
+            List<TileData> neutralVillages, HashSet<WorldCoordinates> assignedCoordinates, PlayerState player)
         {
             WorldCoordinates capitalCoords = player.startTile;
             TileData closestVillage = null;
