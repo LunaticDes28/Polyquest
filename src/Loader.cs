@@ -9,7 +9,7 @@ using DG.Tweening;
 using Polytopia.Data;
 
 
-namespace Polyquest
+namespace PolyMode
 {
     public static class Loader
     {

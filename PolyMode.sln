@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Polyquest", "Polyquest.csproj", "{445650F5-A3D1-4917-99DF-3D5299FC99FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyMode", "PolyMode.csproj", "{445650F5-A3D1-4917-99DF-3D5299FC99FA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

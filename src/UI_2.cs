@@ -4,7 +4,7 @@ using UnityEngine;
 using System;
 using Il2CppInterop.Runtime;
 
-namespace Polyquest
+namespace PolyMode
 {
     public static class UI_2
     {

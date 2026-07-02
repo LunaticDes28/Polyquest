@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Polyquest
+namespace PolyMode
 {
     public static class Main
     {

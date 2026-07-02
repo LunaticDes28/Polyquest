@@ -7,7 +7,7 @@ using PolytopiaBackendBase.Common;
 using UnityEngine.EventSystems;
 using PolytopiaBackendBase.Game;
 
-namespace Polyquest
+namespace PolyMode
 {
     public static class Main
     {
