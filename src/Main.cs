@@ -133,7 +133,14 @@ namespace Polyquest
                     var village = neutralVillages[i];
                     if (!assignedCoordinates.Contains(village.coordinates))
                     {
-                        village.improvement = new ImprovementState { type = ImprovementData.Type.Ruin, level = 1 };
+                        village.improvement = new ImprovementState
+                        {
+                            type = ImprovementData.Type.Ruin,
+                            borderSize = 0,
+                            level = 1,
+                            production = 1,
+                            founded = 0
+                        };
                         neutralVillages.RemoveAt(i);
                         ruinsCount++;
                     }
@@ -429,7 +436,8 @@ namespace Polyquest
 
                         territoryTile.owner = 0;
                         territoryTile.rulingCityCoordinates = WorldCoordinates.NULL_COORDINATES; 
-                        territoryTile.improvement = new ImprovementState { type = ImprovementData.Type.None };
+                        // territoryTile.improvement = new ImprovementState { type = ImprovementData.Type.None };
+                        territoryTile.improvement = null;
                     }
                 }
             }
@@ -438,15 +446,30 @@ namespace Polyquest
             bool leaveRuin = UnityEngine.Random.value <= 1f;
             if (leaveRuin)
             {
-                cityTile.improvement = new ImprovementState { type = ImprovementData.Type.Ruin, level = 1 };
+                cityTile.improvement = new ImprovementState
+                {
+                    type = ImprovementData.Type.Ruin,
+                    borderSize = 0,
+                    level = 1,
+                    production = 1,
+                    founded = 0
+                };
             }
             else
             {
-                cityTile.improvement = new ImprovementState { type = ImprovementData.Type.None };
+                // cityTile.improvement = new ImprovementState { type = ImprovementData.Type.None };
+                cityTile.improvement = null;
             }
 
             cityTile.owner = 0;
             cityTile.capitalOf = 0;
+
+            // 6. Wipe player if necessary
+            if (originalOwner != null && attacker != null && !originalOwner.IsAlive(gameState, gameState.Settings.rules.PlayerDeathCondition))
+            {
+                originalOwner.wipedAtCommandIndex = gameState.CommandStack.Count - 1;
+                gameState.ActionStack.Add(new WipePlayerAction(attacker.Id, originalOwner.Id));
+            }
             
             Loader.modLogger?.LogInfo($"[Conquest] City at {cityTile.coordinates} has been successfully razed.");
         }
