@@ -514,5 +514,58 @@ namespace PolyMode
 
             return true; 
         }
+
+        // =========================================================================
+        // G. Reactions
+        // =========================================================================
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(PopupManager), nameof(PopupManager.GetPopup))]
+        public static void GetPopup_Postfix(string popupId, ref object __result)
+        {
+            Loader.modLogger?.LogInfo($"[Conquest-Popup] Read PopId: {popupId}");
+
+            if (popupId == "CityCaptured" || popupId == "CityLost")
+            {
+                if (__result != null)
+                {
+                    try
+                    {
+                        // 3. 透過反射（Reflection）動態獲取彈出視窗的描述欄位
+                        // Polytopia 的文字欄位名稱通常為 description, desc, 或 text
+                        var descField = __result.GetType().GetField("description", 
+                            System.Reflection.BindingFlags.Public | 
+                            System.Reflection.BindingFlags.NonPublic | 
+                            System.Reflection.BindingFlags.Instance);
+
+                        if (descField != null)
+                        {
+                            // 讀取原來的通知內容（例如："Your city was captured by Imperius!"）
+                            string? originalDesc = descField.GetValue(__result) as string;
+
+                            // 4. 改寫成你想要的自定義描述
+                            string newDesc = "🚨 糟糕！這座城市已經被秘密轉換並落入敵手！";
+                            
+                            // 寫入新文字
+                            descField.SetValue(__result, newDesc);
+                            
+                            Debug.Log($"[Mod] 成功攔截 {popupId} 並將描述修改為: {newDesc}");
+                        }
+                        else
+                        {
+                            // 如果找不到 field，嘗試尋找 Property (Get/Set)
+                            var descProperty = __result.GetType().GetProperty("Description");
+                            if (descProperty != null && descProperty.CanWrite)
+                            {
+                                descProperty.SetValue(__result, "🚨 城市已遭敵方轉換！");
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[Mod] 修改 Popup 描述時出錯: {e.Message}");
+                    }
+                }
+            }
+        }
     }
 }
