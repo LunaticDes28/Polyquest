@@ -10,7 +10,7 @@ namespace Polyquest
     public static class Main
     {
         // =========================================================================
-        // A. Map Generation Hook
+        // A. GameMode Settings
         // =========================================================================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameStateUtils), nameof(GameStateUtils.GenerateMap))]
@@ -27,10 +27,12 @@ namespace Polyquest
 
                 Loader.modLogger?.LogInfo("[Conquest-Map] Conquest Mode selected!");
 
-                // Lock game mode
+                // Pseudo GameSettings in GameState
                 int registeredConquestId = PolyMod.Registry.gameModesAutoidx - 1;
                 gameState.Settings.RulesGameMode = (GameMode)registeredConquestId;
-
+                gameState.Settings.rules.WinByExtermination = true;
+                
+                // Disable bool flag after GameMode initialized
                 UI_2.IsConquestSelected = false;
 
                 Loader.modLogger?.LogInfo($"[Conquest-Map] RulesGameMode stamped as ID: {registeredConquestId}");
@@ -42,7 +44,7 @@ namespace Polyquest
         }
 
         // =========================================================================
-        // B. Emergency Spawn + Ruin Conversion (in GenerateInternal)
+        // B. Village Generation + Logics
         // =========================================================================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateInternal))]
@@ -155,7 +157,7 @@ namespace Polyquest
         }
 
         // =========================================================================
-        // C. Full City Initialization in StartMatchAction
+        // C. City Distribution
         // =========================================================================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(StartMatchAction), nameof(StartMatchAction.ExecuteDefault))]
@@ -296,7 +298,7 @@ namespace Polyquest
         }
 
         // =========================================================================
-        // E. Tech Cost & City Destruction
+        // E. Tech Cost & City Destruction Handler
         // =========================================================================
         [HarmonyPostfix]
         [HarmonyPatch(typeof(GameLogicData), nameof(GameLogicData.GetTechPrice))]
